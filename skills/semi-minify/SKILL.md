@@ -1,6 +1,6 @@
 ---
 name: semi-minify
-description: Author-time identifier abbreviation for browser-only JavaScript. Shortens verbose names to reduce network payload while keeping committed source legible. Use when asked to abbreviate, shorten, or semi-minify identifiers in a browser .js file. Not a build step — whitespace and comment stripping belongs to an esbuild pass.
+description: Author-time identifier abbreviation for browser-only JavaScript. Shortens verbose names and trims comments to reduce network payload while keeping committed source legible. Use when asked to abbreviate, shorten, or semi-minify identifiers in a browser .js file. Not a build step — whitespace stripping belongs to an esbuild pass.
 ---
 
 # Semi-Minify
@@ -31,12 +31,14 @@ Shorten verbose identifiers at author time to reduce bytes over the wire, keepin
    - Destructuring repeated member access: `obj.x … obj.y` → `const { x, y } = obj`
    - Simple `if/else` that only return or assign → ternary
 
-6. Present each proposed change as a diff snippet and wait for approval before applying.
+6. Remove comments by default. If a comment is critical for safety, legal, or non-obvious behavior, keep it but shorten it as much as possible.
+
+7. Present each proposed change as a diff snippet and wait for approval before applying.
 
 ### Phase 3 — Identifier abbreviation
 
-7. For each candidate from Phase 1, derive an abbreviation following the convention in `references/abbreviation-conventions.md`.
-8. Present a **mapping table** to the user:
+8. For each candidate from Phase 1, derive an abbreviation following the convention in `references/abbreviation-conventions.md`.
+9. Present a **mapping table** to the user:
 
    | Original | Proposed | Occurrences |
    |----------|----------|-------------|
@@ -44,23 +46,23 @@ Shorten verbose identifiers at author time to reduce bytes over the wire, keepin
    | `reconstituteRemoteChildren` | `rcRmtCh` | 2 |
    | `validateExportedBindings` | `valEBnd` | 3 |
 
-9. **Wait for explicit approval before continuing.** The user may accept all, reject individual rows, or supply alternative short forms.
+10. **Wait for explicit approval before continuing.** The user may accept all, reject individual rows, or supply alternative short forms.
 
 ### Phase 4 — Apply
 
-10. Apply all approved syntax changes and renames across the whole file.
-11. Do not alter anything not in the approved set.
-12. Report savings:
+11. Apply all approved syntax changes and renames across the whole file.
+12. Do not alter anything not in the approved set.
+13. Report savings:
     - Count the byte size of the original file and the updated file.
     - Present a summary: original size, new size, bytes saved, and percentage reduction.
     - Example: `Before: 4 821 B → After: 3 650 B — saved 1 171 B (24 %)`
-13. Confirm changes applied.
+14. Confirm changes applied.
 
 ## What this skill does not do
 
 - Auto-abbreviate on every build — non-deterministic and breaks debugging.
 - Rename identifiers without approval.
-- Strip whitespace or comments — use an esbuild pass (`--minify-whitespace --minify-syntax`) for that.
+- Strip whitespace — use an esbuild pass (`--minify-whitespace --minify-syntax`) for that.
 
 ## Supporting info
 
