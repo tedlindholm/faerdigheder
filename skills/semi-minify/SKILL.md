@@ -50,7 +50,11 @@ Shorten verbose identifiers at author time to reduce bytes over the wire, keepin
 
 10. Apply all approved syntax changes and renames across the whole file.
 11. Do not alter anything not in the approved set.
-12. Confirm changes applied.
+12. Report savings:
+    - Count the byte size of the original file and the updated file.
+    - Present a summary: original size, new size, bytes saved, and percentage reduction.
+    - Example: `Before: 4 821 B → After: 3 650 B — saved 1 171 B (24 %)`
+13. Confirm changes applied.
 
 ## What this skill does not do
 
