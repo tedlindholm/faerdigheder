@@ -1,6 +1,6 @@
 ---
 name: semi-minify
-description: Author-time identifier abbreviation for browser-only JavaScript. Shortens verbose names and trims comments to reduce network payload while keeping committed source legible. Use when asked to abbreviate, shorten, or semi-minify identifiers in a browser .js file. Not a build step — whitespace stripping belongs to an esbuild pass.
+description: Author-time identifier abbreviation for browser-only JavaScript. Shortens verbose names and trims comments to reduce network payload while keeping committed source legible. Use when asked to reduce client-side JavaScript size without introducing a build-step minifier.
 ---
 
 # Semi-Minify
@@ -17,7 +17,7 @@ Shorten verbose identifiers at author time to reduce bytes over the wire, keepin
 4. From that list, remove:
    - a. Exported names (`export const`, `export function`, `export class`, `export default`, re-exports).
    - b. String literals used as error messages, log output, or attribute/key names.
-   - c. Built-in browser identifiers — anything that is a property or method of `window`, `document`, `navigator`, `console`, `Event`, `Element`, or other platform globals (e.g. `addEventListener`, `getElementById`, `querySelector`).
+   - c. Built-in browser identifiers — anything that is a property or method of `window`, `document`, `navigator`, `console`, `Event`, `Element`, or other platform globals (e.g. `addEventListener`, `querySelector`, `setAttribute`, `textContent`).
    - d. Any identifier imported from an external module.
    - e. Single-letter loop variables and index names (`i`, `j`, `k`, `n`).
 
@@ -29,6 +29,8 @@ Shorten verbose identifiers at author time to reduce bytes over the wire, keepin
    - Shorthand object properties: `{ x: x, y: y }` → `{ x, y }`
    - Shorthand methods: `{ foo: function() {} }` → `{ foo() {} }`
    - Destructuring repeated member access: `obj.x … obj.y` → `const { x, y } = obj`
+   - Short destructuring blocks that remain readable on one line: `const { a, b, c } = obj`
+   - Single-statement `if/else` branches may omit braces and line breaks when readability remains acceptable: `if (sid) flush(() => root.render(vn)); else root.render(vn);`
    - Simple `if/else` that only return or assign → ternary
 
 6. Remove comments by default. If a comment is critical for safety, legal, or non-obvious behavior, keep it but shorten it as much as possible.
