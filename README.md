@@ -1,5 +1,7 @@
 # færdigheder
 
+[![skills.sh](https://skills.sh/b/tedlindholm/faerdigheder)](https://skills.sh/tedlindholm/faerdigheder)
+
 Small, composable skills for real work.
 
 This repository is intentionally lightweight: each skill should be easy to read,
