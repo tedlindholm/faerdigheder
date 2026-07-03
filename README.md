@@ -53,12 +53,14 @@ Hack around with it. Make it your own.
 ├── CONTEXT.md
 ├── scripts/
 └── skills/
+    ├── backstage-catalog-info/
     ├── british-spelling/
     └── skill-creator/
 ```
 
 ## Reference
 
+- `backstage-catalog-info` — Create, update, or validate a Backstage catalog-info.yaml file following the software catalog descriptor format.
 - `british-spelling` — Enforce British English spelling in project-owned text without rewriting third-party identifiers.
 - `skill-creator` — Create and refine reusable skills with strong frontmatter, concise instructions, and supporting references where needed.
 
