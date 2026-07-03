@@ -273,3 +273,17 @@ spec:
   owner: group:default/checkout-team
   system: system:default/checkout-system
 ```
+
+---
+
+## 6. CLI & Automated Validation
+
+To validate descriptor files locally or in CI/CD pipelines before ingestion, the standard community tool is `@roadiehq/backstage-entity-validator`. It executes the exact same schema and type checks as the Backstage catalog engine.
+
+```bash
+# Validate a single descriptor
+npx @roadiehq/backstage-entity-validator --path catalog-info.yaml
+
+# Validate all descriptors across a monorepo
+npx @roadiehq/backstage-entity-validator --path "services/*/catalog-info.yaml"
+```

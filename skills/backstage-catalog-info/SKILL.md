@@ -55,6 +55,10 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
 ### Phase 6 — Validate & Output
 6. Ensure YAML syntax is strictly valid. If defining multiple entities in a single file (e.g., a Component and its provided API), separate them with `---`.
 7. Verify against the schema guidelines in `references/backstage-descriptor-reference.md`.
+8. *Optional CLI validation*: If the user wants an automated CLI check against exact Backstage rules, suggest:
+   ```bash
+   npx @roadiehq/backstage-entity-validator --path catalog-info.yaml
+   ```
 
 ## Supporting info
 
