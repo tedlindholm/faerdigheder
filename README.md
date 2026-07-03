@@ -55,13 +55,15 @@ Hack around with it. Make it your own.
 └── skills/
     ├── backstage-catalog-info/
     ├── british-spelling/
+    ├── semi-minify/
     └── skill-creator/
 ```
 
 ## Reference
 
-- `backstage-catalog-info` — Create, update, or validate a Backstage catalog-info.yaml file following the software catalog descriptor format.
+- `backstage-catalog-info` — Create, update, or validate a Backstage catalog-info.yaml file following the official Software Catalog descriptor format specification.
 - `british-spelling` — Enforce British English spelling in project-owned text without rewriting third-party identifiers.
+- `semi-minify` — Author-time identifier abbreviation for browser-only JavaScript to reduce network payload while keeping committed source legible.
 - `skill-creator` — Create and refine reusable skills with strong frontmatter, concise instructions, and supporting references where needed.
 
 ## Conventions
