@@ -21,7 +21,8 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    - `Location`: References to external catalog files or directories.
 
 ### Phase 2 — Populate Envelope & Metadata
-2. Define the top-level envelope (`apiVersion: backstage.io/v1alpha1`, `kind`, and `metadata`):
+2. Define the top-level envelope (`apiVersion`, `kind`, and `metadata`):
+   - `apiVersion`: Use `backstage.io/v1alpha1` for all kinds **except** `Template`. For `Template` entities, use `backstage.io/v1beta2` or `scaffolder.backstage.io/v1beta3`. Using `v1alpha1` on a Template will fail validation.
    - `name` (**required**): Max 63 characters, lowercase alphanumeric or hyphens, DNS-subdomain compliant (`^[a-z0-9]+(-[a-z0-9]+)*$`).
    - `namespace` (*optional*): Defaults to `"default"` if omitted. Max 63 characters, lowercase alphanumeric/hyphens.
    - `title` (*optional*): Human-readable display name (e.g., `"Billing Processing Service"`).

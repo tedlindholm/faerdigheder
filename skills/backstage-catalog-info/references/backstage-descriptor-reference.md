@@ -35,6 +35,7 @@ spec:
 ### Naming & Metadata Constraints
 - **`name`** and **`namespace`**: Subject to Kubernetes DNS label rules. Must be between 1 and 63 characters, contain only lowercase alphanumeric characters (`a-z`, `0-9`) or hyphens (`-`), and start/end with an alphanumeric character (`^[a-z0-9]+(-[a-z0-9]+)*$`).
 - **`tags`**: Must be strings of lowercase alphanumeric characters, hyphens, or colons (`^[a-z0-9:-]+$`).
+- **`apiVersion`**: All entity kinds (`Component`, `API`, `Resource`, `System`, `Domain`, `User`, `Group`, `Location`) use `backstage.io/v1alpha1`. **Exception:** `Template` entities use `backstage.io/v1beta2` (or `scaffolder.backstage.io/v1beta3`). Using `v1alpha1` on a Template will fail validation.
 - **Runtime System Fields**: Fields like `uid` (unique identifier) and `etag` (optimistic concurrency hash) are managed automatically by Backstage processors at runtime. **Never hardcode `uid` or `etag` in source YAML files.**
 
 ---
@@ -139,6 +140,7 @@ Represents an organizational unit, team, or department.
 Represents a Software Scaffolder template used by developers to generate new repositories or components.
 
 **Spec Fields:**
+- `apiVersion` (**required**): Must be `backstage.io/v1beta2` or `scaffolder.backstage.io/v1beta3` (do NOT use `v1alpha1`).
 - `type` (**required**): What this template creates (e.g., `service`, `website`).
 - `lifecycle` (**required**) & `owner` (**required**).
 - `parameters`: Array of JSON Schema objects defining user input forms.
