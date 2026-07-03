@@ -83,7 +83,13 @@ Represents an interface or API contract provided by a component.
 - `lifecycle` (**required**): Maturity state (`experimental`, `active`, `production`, `deprecated`).
 - `owner` (**required**): Entity reference to owning `Group` or `User`.
 - `system` (*optional*): Entity reference to parent `System`.
-- `definition` (**required**): Raw text specification of the API (e.g., OpenAPI YAML string). In Backstage, this can also use the `$text:` file reader directive (e.g., `$text: ./openapi.yaml`).
+- `definition` (**required**): Raw text specification of the API (e.g., OpenAPI YAML string). In Backstage, this can also use the `$text:` file reader directive (e.g., `$text: ./openapi.yaml`). Note: `definition` cannot be empty or omitted; pointing to a live Swagger UI via `metadata.links` is **not** sufficient.
+
+#### When there's no committed spec file (Runtime-Generated Specs)
+Very often, web services (e.g., Spring Boot, FastAPI, ASP.NET, Express) serve their OpenAPI/Swagger spec dynamically at runtime without committing a static file to git. When authoring `kind: API`, fill `definition` using one of these approaches (in order of preference):
+1. **Export & commit the spec in CI**: Have your CI pipeline fetch the runtime spec (e.g., via `curl`) and commit/bundle it as a static file, then reference it: `definition: $text: ./openapi.yaml`. Best option—versioned, diffable, and works offline.
+2. **Reference a readable URL**: Point directly to an accessible HTTP spec: `definition: $text: https://host/openapi.json`. Note: Requires the URL to be reachable by the Backstage backend process (not ideal for internal-only endpoints without ingress).
+3. **Inline a placeholder**: Inline a minimal, valid schema covering core endpoints, clearly commented as a placeholder. Least preferred—drifts from live reality.
 
 ---
 

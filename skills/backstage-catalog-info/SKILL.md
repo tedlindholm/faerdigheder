@@ -37,7 +37,7 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    - Always specify `owner` (entity ref to a `Group` or `User`, e.g., `group:billing-team` or `user:janedoe`) for `Component`, `API`, `Resource`, `System`, `Domain`, and `Template`.
    - For `Component`, `API`, and `Resource`: Include `lifecycle` (`experimental`, `active`, `production`, `deprecated`) and optional `system` reference.
    - For `Component`: Set `type` (`service`, `website`, `library`, etc.), and map dependencies using `providesApis`, `consumesApis`, `dependsOn`, and `subcomponentOf`.
-   - For `API`: Set `type` (`openapi`, `grpc`, `graphql`, `asyncapi`) and provide the `definition` string (inline or via Backstage `$text:` file reference).
+   - For `API`: Set `type` (`openapi`, `grpc`, `graphql`, `asyncapi`) and provide the `definition` string (inline, `$text: ./openapi.yaml`, or `$text: https://...`). For runtime-generated specs (Swagger), export/commit in CI or reference a readable URL; pointing via `metadata.links` alone is invalid.
    - For `System` / `Domain`: Set `domain` (on System) to build the organizational hierarchy.
 
 ### Phase 4 — Format Entity References Correctly
