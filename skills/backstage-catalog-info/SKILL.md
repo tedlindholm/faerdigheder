@@ -49,7 +49,8 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
 5. Add well-known `metadata.annotations` to enable Backstage plugins:
    - `backstage.io/techdocs-ref`: Point to documentation (e.g., `dir:.` or `dir:./docs`).
    - `github.com/project-slug`: GitHub integration formatted as `owner/repo`.
-   - `backstage.io/source-location`: URL pointing to the source repository.
+   - `dev.azure.com/project-repo`: Azure DevOps integration formatted as `<project>/<repo>`.
+   - `backstage.io/source-location`: Explicit source repository reference. **Must** use the `url:` prefix (e.g., `url:https://github.com/org/repo/` or `url:https://dev.azure.com/org/proj/_git/repo/`). If pointing to a folder, include a trailing slash. Do NOT manually add `managed-by-*` annotations.
    - Add other CI/CD, Sentry, or cloud provider annotations as appropriate.
 
 ### Phase 6 — Validate & Output

@@ -163,13 +163,25 @@ Used to point Backstage processors to external catalogs or directories.
 
 ### Well-Known Annotations (`metadata.annotations`)
 - `backstage.io/techdocs-ref`: Points to TechDocs documentation source (e.g., `dir:.` or `dir:./docs`).
-- `backstage.io/source-location`: Explicit repository source URL.
+- `backstage.io/source-location`: Explicit repository source URL. **Requires a type prefix** (e.g., `url:https://github.com/org/repo/`). If pointing to a subdirectory, **must end with a trailing slash** (`url:https://github.com/org/repo/tree/main/subdir/`).
 - `backstage.io/view-url` / `backstage.io/edit-url`: Custom UI links for viewing or editing source.
 - `github.com/project-slug`: GitHub integration (`owner/repo`).
 - `gitlab.com/project-slug`: GitLab integration (`group/subgroup/repo`).
+- `dev.azure.com/project-repo`: Azure DevOps integration (`<project>/<repo>`).
 - `sentry.io/project-slug`: Sentry error tracking dashboard integration.
 - `pagerduty.com/integration-key`: PagerDuty service key for on-call status.
 - `circleci.com/project-slug` / `jenkins.io/job-full-name`: CI/CD pipeline tracking.
+
+#### Source Location & Monorepo Rules
+When configuring source locations, distinguish between author-written and auto-managed annotations:
+
+| Annotation | Points to | Set by |
+|---|---|---|
+| `backstage.io/source-location` | The actual **source code** location | **Manually by author** (used when catalog file is stored apart from code) |
+| `backstage.io/managed-by-location` | Where the `catalog-info.yaml` **itself** was fetched from | **Automatically by Backstage** on ingestion (do NOT hand-write) |
+| `backstage.io/managed-by-origin-location` | The original registered ingestion location | **Automatically by Backstage** (do NOT hand-write) |
+
+- **Monorepos & Azure DevOps limitation**: For GitHub, pointing a component to a monorepo subdirectory works via folder URLs (`url:https://github.com/org/repo/tree/main/subdir/`). However, **Azure DevOps has no clean folder-tree URL** (its web UI uses `?path=/subdir` query strings, which are malformed for source-locations). For Azure DevOps monorepos, point `source-location` to the repository root instead.
 
 ### Well-Known Relations
 Relations are built implicitly via spec fields or explicitly via catalog processors:
