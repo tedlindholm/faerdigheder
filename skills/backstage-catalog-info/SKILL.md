@@ -19,6 +19,7 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    - `User` / `Group`: Organizational hierarchy, teams, and individuals.
    - `Template`: Software Scaffolder templates for creating new projects.
    - `Location`: References to external catalog files or directories.
+   - *CMDB/Registry Onboarding*: When migrating from an existing CMDB or service registry, map legacy concepts using the translation table in Section 8 of `references/backstage-descriptor-reference.md`.
 
 ### Phase 2 — Populate Envelope & Metadata
 2. Define the top-level envelope (`apiVersion`, `kind`, and `metadata`):
@@ -60,6 +61,7 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    ```bash
    npx @roadiehq/backstage-entity-validator --path catalog-info.yaml
    ```
+9. *File placement & discovery*: Ensure files are positioned according to Backstage discovery and scanner conventions (e.g., repo-root `catalog-info.yaml` or root `Location` glue; see Section 7 in `references/backstage-descriptor-reference.md`).
 
 ## Supporting info
 

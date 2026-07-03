@@ -317,3 +317,46 @@ npx @roadiehq/backstage-entity-validator --path catalog-info.yaml
 # Validate all descriptors across a monorepo
 npx @roadiehq/backstage-entity-validator --path "services/*/catalog-info.yaml"
 ```
+
+---
+
+## 7. File Placement, Discovery & Scanner Conventions
+
+When setting up catalog discovery or writing custom repo scanners, follow these placement and naming conventions:
+
+### File Placement & Naming Rules
+1. **Default Location**: Place a descriptor file named `catalog-info.yaml` at the root of the repository. Auto-discovery processors and the Backstage "register existing component" flow expect this exact name at the default branch root.
+2. **Monorepos**: Two common, accepted patterns:
+   - **Multi-document root**: A single root `catalog-info.yaml` with multiple entities separated by `---` (best for tightly-coupled packages).
+   - **Distributed files**: One `catalog-info.yaml` per package/component subfolder (e.g., `packages/app/catalog-info.yaml`), discovered via glob pattern or tied together by a root `kind: Location` entity using `spec.targets`.
+3. **Org Entities (`Group` / `User`) & Central Architecture (`Domain` / `System`)**: Do not scatter org entities or top-level Systems/Domains across individual service repositories. Centralize them in a dedicated org/architecture repository or a root `catalog/` directory, registered once. (Note: Groups and Users are typically ingested from an identity provider like Entra ID, Okta, or GitHub Teams rather than hand-written).
+4. **`Location` Kind as Glue**: Use a root `Location` descriptor with `spec.targets` to reference files or URLs that reside outside standard discovery paths.
+5. **Documentation Site Gotcha**: Do not drop machine catalog YAML files into documentation site content folders (e.g., Astro Starlight `src/content/docs`), as this can break static doc builds or cause the catalog file to be ignored. Keep catalog metadata separate from rendered doc pages.
+
+### Repo Scanner Contract
+If building an automated tool or scanner to locate and identify descriptor files across many repositories without running a Backstage backend:
+- **Filename Matching**: Search for files named exactly `catalog-info.yaml` (root first, then `**/catalog-info.yaml` for monorepos). Exclude build artifacts and dependencies (`node_modules`, `dist`, `.git`, `bin`, `obj`).
+- **Robust Content Signature**: Verify that the YAML document has an `apiVersion` starting with `backstage.io/` or `scaffolder.backstage.io/` **and** a valid `kind` (`Component`, `API`, `Resource`, `System`, `Domain`, `Group`, `User`, `Template`, `Location`). This filters out stray YAML files (like docker-compose or CI workflows) and correctly identifies valid descriptors even if renamed.
+- **Multi-Document Handling**: Always split files on `---` to inspect each YAML document independently.
+
+---
+
+## 8. Mapping an Existing CMDB or Service Registry
+
+When bootstrapping Backstage from an existing CMDB, APM, or internal service registry (e.g., ServiceNow APM or custom technical service registries), use this translation table to map legacy records to Backstage kinds:
+
+| CMDB / APM Concept | Backstage Kind | Notes & Mapping Rules |
+|---|---|---|
+| Business Unit | `Domain` | Top-level organizational grouping. |
+| Capability / System Grouping | `Domain` or `System` | Choose based on architecture granularity. |
+| Technical Service / Application | `System` | Represents the overall product or service bundle; often carries the CMDB ID. |
+| Deployable Unit / Repository | `Component` | Set `spec.type` appropriately (`service`, `website`, `library`). |
+| Exposed Interface / Contract | `API` | Linked via `providesApis` and `consumesApis`. |
+| Database, Bucket, Queue | `Resource` | Linked via `dependsOn`. |
+| Team / Squad | `Group` | Primary target for `spec.owner`. |
+| Responsible Person | `User` or annotation | Prefer setting `spec.owner` to a `Group`; record individuals via metadata annotations. |
+
+### Migration Gotchas
+- **Single-Valued `spec.owner`**: Backstage requires `spec.owner` to be a single entity reference (preferably a `Group`). If your CMDB records both an "Owned by" department and a "Maintenance team", assign the active maintenance team as `spec.owner` and record the organizational owner via a custom metadata annotation or on the parent `System` entity.
+- **Preserve CMDB Identifiers**: Record legacy IDs (e.g., service IDs, availability tiers, cost centers) as custom organizational annotations (e.g., `acme.com/cmdb-service-id: "6081"`). Remember that Kubernetes label character rules forbid spaces and special characters, so use annotations for arbitrary strings.
+- **Lifecycle Mapping**: Translate CMDB status strings to standard Backstage lifecycle states (e.g., map `"In Production"` or `"Live"` to `production`; `"In Development"` to `experimental` or `active`).
