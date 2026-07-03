@@ -28,7 +28,7 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    - `title` (*optional*): Human-readable display name (e.g., `"Billing Processing Service"`).
    - `description` (*optional but recommended*): Clear summary of the entity's functionality.
    - `tags` (*optional*): Array of lowercase string tags for filtering (e.g., `["java", "spring-boot", "aws"]`).
-   - `labels` (*optional*): Key-value pairs for Kubernetes-style classification and filtering.
+   - `labels` (*optional*): Key-value pairs for Kubernetes-style classification and filtering. Max 63 chars per value, alphanumeric/hyphens/dots/underscores without spaces. Use `annotations` for freeform or custom org strings.
    - `links` (*optional*): Array of external URLs (each containing `url`, and optionally `title`, `icon`, `type`).
    - **Do NOT include runtime system fields**: Never hardcode `uid`, `etag`, or `status` in source YAML files.
 

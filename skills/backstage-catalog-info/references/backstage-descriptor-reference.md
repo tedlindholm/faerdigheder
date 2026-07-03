@@ -35,6 +35,7 @@ spec:
 ### Naming & Metadata Constraints
 - **`name`** and **`namespace`**: Subject to Kubernetes DNS label rules. Must be between 1 and 63 characters, contain only lowercase alphanumeric characters (`a-z`, `0-9`) or hyphens (`-`), and start/end with an alphanumeric character (`^[a-z0-9]+(-[a-z0-9]+)*$`).
 - **`tags`**: Must be strings of lowercase alphanumeric characters, hyphens, or colons (`^[a-z0-9:-]+$`).
+- **`labels` vs `annotations`**: **Label values** have strict Kubernetes character rules: max 63 characters, matching `^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`. Do not store arbitrary strings (like names with spaces or special characters) in labels, or validation will fail. Use labels exclusively for filterable, machine-friendly classifications. For arbitrary or human-readable data (e.g., service IDs, responsible person, availability tier), use **annotations** which accept freeform strings.
 - **`apiVersion`**: All entity kinds (`Component`, `API`, `Resource`, `System`, `Domain`, `User`, `Group`, `Location`) use `backstage.io/v1alpha1`. **Exception:** `Template` entities use `backstage.io/v1beta2` (or `scaffolder.backstage.io/v1beta3`). Using `v1alpha1` on a Template will fail validation.
 - **Runtime System Fields**: Fields like `uid` (unique identifier) and `etag` (optimistic concurrency hash) are managed automatically by Backstage processors at runtime. **Never hardcode `uid` or `etag` in source YAML files.**
 
@@ -182,6 +183,17 @@ When configuring source locations, distinguish between author-written and auto-m
 | `backstage.io/managed-by-origin-location` | The original registered ingestion location | **Automatically by Backstage** (do NOT hand-write) |
 
 - **Monorepos & Azure DevOps limitation**: For GitHub, pointing a component to a monorepo subdirectory works via folder URLs (`url:https://github.com/org/repo/tree/main/subdir/`). However, **Azure DevOps has no clean folder-tree URL** (its web UI uses `?path=/subdir` query strings, which are malformed for source-locations). For Azure DevOps monorepos, point `source-location` to the repository root instead.
+
+#### Custom Organizational Metadata
+When storing organization-specific or custom metadata that has no well-known Backstage key (e.g., service ID, availability classification, team contact), use **annotations** with a domain prefix you own (`<domain>/<key>`):
+```yaml
+metadata:
+  annotations:
+    acme.com/technical-service-id: "6081"
+    acme.com/availability-classification: "3 - Important"
+    acme.com/team-responsible: "Jane Doe"
+```
+Do not use reserved prefixes (`backstage.io/`, `kubernetes.io/`) for custom keys.
 
 ### Well-Known Relations
 Relations are built implicitly via spec fields or explicitly via catalog processors:
