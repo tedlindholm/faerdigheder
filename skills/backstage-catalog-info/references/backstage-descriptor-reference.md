@@ -310,12 +310,13 @@ spec:
 
 To validate descriptor files locally or in CI/CD pipelines before ingestion, the standard community tool is `@roadiehq/backstage-entity-validator`. It executes the exact same schema and type checks as the Backstage catalog engine.
 
+Execute the CLI directly via npx (passing filenames as positional arguments):
 ```bash
 # Validate a single descriptor
-npx @roadiehq/backstage-entity-validator --path catalog-info.yaml
+npx -y @roadiehq/backstage-entity-validator catalog-info.yaml
 
 # Validate all descriptors across a monorepo
-npx @roadiehq/backstage-entity-validator --path "services/*/catalog-info.yaml"
+npx -y @roadiehq/backstage-entity-validator "services/*/catalog-info.yaml"
 ```
 
 ---
