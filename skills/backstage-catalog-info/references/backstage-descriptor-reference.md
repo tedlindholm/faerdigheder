@@ -97,11 +97,11 @@ Very often, web services (e.g., Spring Boot, FastAPI, ASP.NET, Express) serve th
 Represents physical or virtual infrastructure needed by components (databases, S3 buckets, Kubernetes clusters, messaging topics).
 
 **Spec Fields:**
-- `type` (**required**): Classification string (e.g., `database`, `s3-bucket`, `kubernetes-cluster`).
+- `type` (**required**): Classification string (e.g., `database`, `s3-bucket`, `kubernetes-cluster`). Cloud infrastructure bundles are commonly modeled with a descriptive type such as `azure-infrastructure` or `terraform`.
 - `lifecycle` (**required**): Maturity state.
 - `owner` (**required**): Entity reference to owning team/user.
 - `system` (*optional*): Entity reference to parent `System`.
-- `dependsOn` / `dependencyOf` (*optional*): Arrays of entity references showing resource interdependencies.
+- `dependsOn` / `dependencyOf` (*optional*): Arrays of entity references showing resource interdependencies. A `Component` typically links to its `Resource`s via `spec.dependsOn` (e.g., `resource:my-service-db`, `resource:my-service-infrastructure`).
 
 ---
 
@@ -191,7 +191,7 @@ When configuring source locations, distinguish between author-written and auto-m
 - **Monorepos & Azure DevOps limitation**: For GitHub, pointing a component to a monorepo subdirectory works via folder URLs (`url:https://github.com/org/repo/tree/main/subdir/`). However, **Azure DevOps has no clean folder-tree URL** (its web UI uses `?path=/subdir` query strings, which are malformed for source-locations). For Azure DevOps monorepos, point `source-location` to the repository root instead.
 
 #### Custom Organizational Metadata
-When storing organization-specific or custom metadata that has no well-known Backstage key (e.g., service ID, availability classification, team contact), use **annotations** with a domain prefix you own (`<domain>/<key>`):
+When storing organization-specific or custom metadata that has no well-known Backstage key (e.g., service ID, availability classification, team contact), use **annotations** (not `labels`, whose values must satisfy strict Kubernetes character rules). A domain prefix you own (`<domain>/<key>`) is recommended to avoid key collisions:
 ```yaml
 metadata:
   annotations:
@@ -199,7 +199,10 @@ metadata:
     acme.com/availability-classification: "3 - Important"
     acme.com/team-responsible: "Jane Doe"
 ```
-Do not use reserved prefixes (`backstage.io/`, `kubernetes.io/`) for custom keys.
+Bare (unprefixed) custom keys such as `system-id`, `business-owner`, or `availability-classification` are also accepted by the catalog engine and appear in real-world descriptors, but the prefixed form is safer. Do not use reserved prefixes (`backstage.io/`, `kubernetes.io/`) for custom keys. In practice this CMDB-style metadata is most often attached to the `System` entity that represents the overall product.
+
+#### Annotations Are Not Inherited Across Documents
+When a single repository's `catalog-info.yaml` defines multiple entities (separated by `---`), annotations like `backstage.io/source-location` and `dev.azure.com/project-repo` are **not** shared between documents. Repeat them on each entity that maps to that repository. Entities that do not correspond to source in that repo (e.g., a `Resource` describing a managed database) typically omit `source-location`.
 
 ### Well-Known Relations
 Relations are built implicitly via spec fields or explicitly via catalog processors:
@@ -302,6 +305,150 @@ spec:
   lifecycle: production
   owner: group:default/checkout-team
   system: system:default/checkout-system
+```
+
+### Single-Repo System Bundle (Azure DevOps)
+This mirrors a common real-world layout: one repository's `catalog-info.yaml` declaring the `System` (with custom CMDB annotations), its service and client `Component`s, backing `Resource`s, and the provided `API`. Note the repeated `source-location`/`project-repo` annotations per code-backed entity, the `$text` file reference for the API spec, and the `azure-infrastructure` resource type.
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: time-hub
+  title: Time Hub
+  description: Time tracking and readiness planning.
+  annotations:
+    acme.com/system-id: "763"
+    acme.com/business-owner: "Jane Doe"
+    acme.com/lifecycle-classification: "Growth"
+spec:
+  owner: group:engineering-managers
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: time-hub-api
+  title: Time Hub API
+  description: Backend for Time Hub.
+  tags:
+    - azure
+    - dotnet
+    - csharp
+  annotations:
+    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
+    dev.azure.com/project-repo: BIT/EM_TimeHub
+  links:
+    - url: https://timehub-api.example.com/scalar/v1
+      title: Scalar API reference
+      icon: docs
+spec:
+  type: service
+  lifecycle: production
+  owner: group:engineering-managers
+  system: system:time-hub
+  providesApis:
+    - api:time-hub-api
+  dependsOn:
+    - resource:time-hub-db
+    - resource:time-hub-infrastructure
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: time-hub-client
+  title: Time Hub Client
+  description: Client for Time Hub.
+  tags:
+    - azure
+    - react
+    - typescript
+  annotations:
+    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
+    dev.azure.com/project-repo: BIT/EM_TimeHub
+spec:
+  type: website
+  lifecycle: production
+  owner: group:engineering-managers
+  system: system:time-hub
+  consumesApis:
+    - api:time-hub-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: time-hub-db
+  title: Time Hub DB
+  description: Stores Time Hub data.
+  tags:
+    - azure
+    - sql
+spec:
+  type: database
+  lifecycle: production
+  owner: group:engineering-managers
+  system: system:time-hub
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: time-hub-infrastructure
+  title: Time Hub Infrastructure
+  description: Azure infrastructure for Time Hub.
+  tags:
+    - azure
+    - infrastructure
+spec:
+  type: azure-infrastructure
+  lifecycle: production
+  owner: group:engineering-managers
+  system: system:time-hub
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: time-hub-api
+  title: Time Hub API
+  description: REST API for identity, configuration, and readiness.
+  annotations:
+    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
+  links:
+    - url: https://timehub-api.example.com/scalar/v1
+      title: Scalar API reference
+      icon: docs
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:engineering-managers
+  system: system:time-hub
+  definition:
+    $text: ./openapi/timehub-api-v1.json
+```
+
+### Minimal Library Component (GitHub)
+GitHub-discovered repos often need only TechDocs and tags; `source-location` is managed automatically by Backstage and can be omitted.
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: splashdown
+  title: Splashdown
+  description: HTML-to-Markdown library for preparing web content for agent workflows.
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://docs.example.com/splashdown/
+      title: DevDocs
+      icon: docs
+      type: documentation
+  tags:
+    - html
+    - markdown
+    - typescript
+spec:
+  type: library
+  lifecycle: active
+  owner: group:web-team
 ```
 
 ---

@@ -53,6 +53,9 @@ Generate, update, and validate standard Backstage descriptor files (`catalog-inf
    - `dev.azure.com/project-repo`: Azure DevOps integration formatted as `<project>/<repo>`.
    - `backstage.io/source-location`: Explicit source repository reference. **Must** use the `url:` prefix (e.g., `url:https://github.com/org/repo/` or `url:https://dev.azure.com/org/proj/_git/repo/`). If pointing to a folder, include a trailing slash. Do NOT manually add `managed-by-*` annotations.
    - Add other CI/CD, Sentry, or cloud provider annotations as appropriate.
+   - **Provider conventions**: GitHub repos discovered automatically often omit `source-location` entirely (Backstage manages it) and only need `techdocs-ref`. Azure DevOps repos should set `source-location` explicitly to the repo root (`url:https://dev.azure.com/<org>/<project>/_git/<repo>/`, trailing slash) plus `dev.azure.com/project-repo`.
+   - **Multi-entity files**: When several entities live in one repo's descriptor, repeat `source-location` (and `dev.azure.com/project-repo`) on each entity that maps to that repo, since annotations are not inherited across `---` documents.
+   - **Custom/CMDB metadata**: Organization-specific fields (service ID, business owner, availability tier, lifecycle classification) belong in `annotations`, not `labels`. Bare keys (e.g., `system-id: "763"`) are accepted by Backstage and appear in real catalogs, but a domain-prefixed key (`acme.com/system-id`) is recommended to avoid collisions. Such metadata is commonly attached to the `System` entity.
 
 ### Phase 6 — Validate & Output
 6. Ensure YAML syntax is strictly valid. If defining multiple entities in a single file (e.g., a Component and its provided API), separate them with `---`.
