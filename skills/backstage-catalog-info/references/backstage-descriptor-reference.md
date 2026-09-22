@@ -12,8 +12,8 @@ Every catalog descriptor file is a YAML document. Multiple entities can be defin
 apiVersion: backstage.io/v1alpha1
 kind: <Kind> # e.g., Component, API, Resource, System, Domain, User, Group, Template
 metadata:
-  name: <string> # Required: Max 63 chars, DNS-subdomain format
-  namespace: <string> # Optional: Max 63 chars, defaults to 'default'
+  name: <string> # Required: 1-63 chars, alphanumeric separated by '-', '_' or '.'
+  namespace: <string> # Optional: Max 63 chars, alphanumeric separated by '-', defaults to 'default'
   title: <string> # Optional: Human-readable display name
   description: <string> # Optional: Summary of functionality
   labels: # Optional: Key-value classification pairs
@@ -33,7 +33,8 @@ spec:
 ```
 
 ### Naming & Metadata Constraints
-- **`name`** and **`namespace`**: Subject to Kubernetes DNS label rules. Must be between 1 and 63 characters, contain only lowercase alphanumeric characters (`a-z`, `0-9`) or hyphens (`-`), and start/end with an alphanumeric character (`^[a-z0-9]+(-[a-z0-9]+)*$`).
+- **`name`**: Must be between 1 and 63 characters, consisting of sequences of alphanumeric characters (`a-z`, `A-Z`, `0-9`) possibly separated by a single `-`, `_` or `.` (`^[a-zA-Z0-9]+([-_.][a-zA-Z0-9]+)*$`). Uppercase letters, underscores and dots are therefore legal (e.g., `visits-tracking-service`, `CircleciBuildsDumpV2_avro_gcs`), so repository names carrying capitals or underscores are valid as-is. Lowercase-and-hyphens is a common house *preference*, not a format constraint. Names are unique per kind and namespace, and uniqueness is case insensitive.
+- **`namespace`**: Stricter than `name`. Max 63 characters, consisting of sequences of alphanumeric characters (`a-z`, `A-Z`, `0-9`) possibly separated by `-` (`^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$`); no underscores or dots. Namespace names are case insensitive and rendered as lowercase in most places.
 - **`tags`**: Must be strings of lowercase alphanumeric characters, hyphens, or colons (`^[a-z0-9:-]+$`).
 - **`labels` vs `annotations`**: **Label values** have strict Kubernetes character rules: max 63 characters, matching `^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`. Do not store arbitrary strings (like names with spaces or special characters) in labels, or validation will fail. Use labels exclusively for filterable, machine-friendly classifications. For arbitrary or human-readable data (e.g., service IDs, responsible person, availability tier), use **annotations** which accept freeform strings.
 - **`apiVersion`**: All entity kinds (`Component`, `API`, `Resource`, `System`, `Domain`, `User`, `Group`, `Location`) use `backstage.io/v1alpha1`. **Exception:** `Template` entities use `backstage.io/v1beta2` (or `scaffolder.backstage.io/v1beta3`). Using `v1alpha1` on a Template will fail validation.
@@ -119,6 +120,7 @@ A high-level organizational boundary grouping related systems (e.g., aligning wi
 
 **Spec Fields:**
 - `owner` (**required**): Entity reference to owning team/user.
+- `subdomainOf` (*optional*): Entity reference to a parent `Domain` this domain is part of (defaults to kind `Domain`, e.g., `audio-domain`).
 
 ---
 
