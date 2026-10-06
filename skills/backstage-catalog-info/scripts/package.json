@@ -1,0 +1,14 @@
+{
+  "name": "backstage-catalog-info-validator",
+  "private": true,
+  "type": "module",
+  "description": "Offline validator for Backstage catalog-info.yaml descriptors, using the official catalog-model validators.",
+  "scripts": {
+    "validate": "node validate-catalog-info.mjs"
+  },
+  "dependencies": {
+    "@backstage/catalog-model": "^1.10.1",
+    "@backstage/plugin-scaffolder-common": "^2.3.0",
+    "yaml": "^2.9.1"
+  }
+}

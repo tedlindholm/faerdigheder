@@ -1,510 +1,318 @@
 # Backstage Catalog Descriptor Reference
 
-This reference details the official schema format, metadata constraints, entity reference syntax, kind specifications, well-known annotations, and relationship definitions for Spotify's Backstage Software Catalog (`catalog-info.yaml`).
+A focused guide to authoring standard catalog descriptors. Requirements below describe Backstage defaults; an installation can add kinds, validation policies, processors, and taxonomies. Check its configured behaviour before replacing local conventions.
 
----
+## Kind-specific fields
 
-## 1. Common Envelope & Metadata Schema
+All entities need `apiVersion`, `kind`, and `metadata.name`. The standard kinds below use `backstage.io/v1alpha1`; Templates use the separate Scaffolder version described afterwards.
 
-Every catalog descriptor file is a YAML document. Multiple entities can be defined in a single file by separating them with `---`. Every entity must follow this envelope structure:
+| Kind | What it represents | Required `spec` fields | Optional `spec` fields |
+| --- | --- | --- | --- |
+| `Component` | A deployable or linkable software unit | `type`, `lifecycle`, `owner` | `system`, `subcomponentOf`, `providesApis`, `consumesApis`, `dependsOn`, `dependencyOf` |
+| `API` | An interface or contract exposed by software | `type`, `lifecycle`, `owner`, `definition` | `system` |
+| `Resource` | Infrastructure needed by software | `type`, `owner` | `system`, `dependsOn`, `dependencyOf` |
+| `System` | Cooperating software and resources serving a purpose | `owner` | `domain`, `type` |
+| `Domain` | A related area of systems or business capabilities | `owner` | `subdomainOf`, `type` |
+| `Group` | An organisational unit or team | `type`, `children` | `profile`, `parent`, `members` |
+| `User` | A person | `memberOf` | `profile` |
+| `Location` | Pointers to other descriptor files | The `spec` object itself; `{}` is valid | `type`, `target`, `targets`, `presence` |
+
+- `Resource` has no standard lifecycle field. Preserve a local extension if used, but do not require or add it as a default.
+- `Group.children` and `User.memberOf` are arrays that must be present and may be empty (`[]`). Group membership lists describe direct membership. A Group has at most one `parent`.
+- `Group.profile` and `User.profile` may contain `displayName`, `email`, and `picture`; all are optional strings.
+- `owner` is one entity reference, usually to a Group, or explicitly to a User. Choose the entity with ultimate responsibility; this field is not an access-control rule.
+- `type` and `lifecycle` are non-empty strings, with taxonomies chosen by the organisation. Common Component types include `service`, `website`, and `library`; common API types include `openapi`, `asyncapi`, `graphql`, and `grpc`. Common Component/API lifecycles are `experimental`, `production`, and `deprecated`. A local value such as `active` is possible, but is not a Backstage-wide standard.
+- `Location.type` inherits the reader type from its originating location when omitted. `target` names one file and `targets` lists files; neither field is individually mandatory. Relative paths resolve from the Location descriptor. `presence` is `required` by default or may be `optional`.
+
+### Templates
+
+For new Templates use `apiVersion: scaffolder.backstage.io/v1beta3`. Its schema requires `spec.type` and `spec.steps`; `owner`, `lifecycle`, `parameters`, and `output` are optional. Include a known owner when useful or required locally. Parameters can be a JSON Schema object or an array of form schemas. Each step needs an `action`; verify that its action and inputs are supported by the target Scaffolder.
+
+The catalog descriptor page still contains a legacy `backstage.io/v1beta2` example and inconsistent requirement wording. Use the [current Template guide](https://backstage.io/docs/features/software-templates/writing-templates/) and [v1beta3 schema](https://github.com/backstage/backstage/blob/master/plugins/scaffolder-common/src/Template.v1beta3.schema.json) for new work. Existing legacy Templates need version-specific assessment; do not silently migrate their workflow.
+
+## Metadata
+
+Default metadata rules come from the [descriptor format](https://backstage.io/docs/features/software-catalog/descriptor-format/#common-to-all-kinds-the-metadata). The installation may override field validators.
+
+| Field | Authoring guidance |
+| --- | --- |
+| `name` | Required, 1–63 characters. Alphanumeric characters with internal `-`, `_`, or `.` are allowed, including uppercase letters. Prefer lowercase kebab-case for new names; preserve existing identities. |
+| `namespace` | Optional, defaults to `default`. Use 1–63 lowercase alphanumeric characters with internal hyphens. Namespace and name have different format rules. |
+| `title` | Optional short display name. References still use `name`. |
+| `description` | Optional short explanation of purpose. Put detailed documentation elsewhere. |
+| `labels` | String key/value classifications for querying or filtering. Non-empty values use the name character rules and have a 63-character limit; the default validator also accepts empty values. |
+| `annotations` | String key/value metadata for plugins, external identifiers, or other information. Values can contain spaces and have no fixed length limit. Quote numeric and boolean-looking values. |
+| `tags` | Strings up to 63 characters: lowercase alphanumeric characters plus `:`, `+`, and `#`, separated by hyphens. Examples: `dotnet`, `c#`, `c++`, `runtime:dotnet`. |
+| `links` | Human-facing links. Each needs a URI in `url`; `title`, `icon`, and `type` are optional. An icon is a semantic key whose rendering depends on the app. |
+
+Label and annotation keys have an optional lowercase domain prefix followed by `/`, then a name of up to 63 characters using alphanumeric characters and internal `-`, `_`, or `.`. The domain prefix has a 253-character limit. Use a domain you control for custom keys, such as `example.com/tier`; `backstage.io/` is reserved for Backstage-defined keys.
+
+Labels are suitable for custom classifications when the value fits their format. Annotations suit arbitrary strings or integration settings; custom metadata does not automatically belong in annotations just because it is organisation-specific. Prefer a relevant well-known annotation over a link when a plugin expects that annotation.
+
+The identity is the case-insensitive triplet `(kind, namespace, name)`, not `title`, repository URL, or `uid`. Different kinds or namespaces can share a name. Renaming an entity changes its identity and requires checking incoming references.
+
+Do not copy `metadata.uid`, `metadata.etag`, root `relations`, or root `status` from catalog API responses into source YAML. Processors derive relations and statuses. When consuming catalog API output, use generated relations as the authority for relationships rather than assuming `spec.owner` is the final source.
+
+## Entity references
+
+The string form is `[<kind>:][<namespace>/]<name>`. A full example is `group:default/billing-team`. References transported between systems should include all three parts and use lowercase, ideally through Backstage's `stringifyEntityRef`.
+
+In the built-in catalog processor, omitted namespaces in the fields below resolve to the referencing entity's namespace. A missing entity `metadata.namespace` itself resolves to `default`. These are separate defaults.
+
+| `spec` field | Default target kind | Relationship produced from the entity |
+| --- | --- | --- |
+| `owner` | `Group` (`User` must be explicit) | `ownedBy` |
+| `system` | `System` | `partOf` |
+| `domain`, `subdomainOf` | `Domain` | `partOf` |
+| `subcomponentOf` | `Component` | `partOf` |
+| `providesApis` | `API` | `providesApi` |
+| `consumesApis` | `API` | `consumesApi` |
+| `dependsOn` | No default kind; specify `component:` or `resource:` | `dependsOn` |
+| `dependencyOf` | No default kind; specify `component:` or `resource:` | `dependencyOf` |
+| `parent`, `children` | `Group` | `childOf`, `parentOf` |
+| `members` | `User` | `hasMember` |
+| `memberOf` | `Group` | `memberOf` |
+
+For a Component in namespace `payments`:
+
+- `owner: billing-team` means `group:payments/billing-team`.
+- `owner: group:default/billing-team` names a centrally managed Group in `default`.
+- `providesApis: [billing-api]` means `api:payments/billing-api`.
+- `dependsOn: [resource:billing-db]` means `resource:payments/billing-db`.
+- `dependsOn: [billing-db]` lacks a kind and cannot be resolved by the built-in processor.
+
+Shorthand is valid when its defaults identify the intended entity. Full references avoid ambiguity across namespaces. Do not add `spec.partOf` or a root `relations` list to declare relationships; use the field supported by the entity kind. Backstage generates reverse relations, so both ends need not repeat API or dependency declarations.
+
+The [entity reference article](https://backstage.io/docs/features/software-catalog/references/) explains contextual defaults, but its ownership example differs from the current descriptor tables. The [built-in processor](https://github.com/backstage/backstage/blob/master/plugins/catalog-backend/src/processors/BuiltinKindsEntityProcessor.ts) shows the actual default namespace and kind for each field. Custom processors may use different rules.
+
+## API definitions and substitutions
+
+`API.spec.definition` must become a string containing the actual contract in the format named by `spec.type`. A Swagger UI or Scalar link is useful for navigation, but does not supply the required contract.
+
+Inline small contracts using a YAML block scalar, or load a maintained contract with a mapping:
 
 ```yaml
 apiVersion: backstage.io/v1alpha1
-kind: <Kind> # e.g., Component, API, Resource, System, Domain, User, Group, Template
+kind: API
 metadata:
-  name: <string> # Required: Max 63 chars, DNS-subdomain format
-  namespace: <string> # Optional: Max 63 chars, defaults to 'default'
-  title: <string> # Optional: Human-readable display name
-  description: <string> # Optional: Summary of functionality
-  labels: # Optional: Key-value classification pairs
-    backstage.io/tier: tier-1
-  annotations: # Optional: Plugin integration key-value pairs
-    backstage.io/techdocs-ref: dir:.
-  tags: # Optional: Array of lowercase strings
-    - java
-    - spring-boot
-  links: # Optional: Array of external hyperlinks
-    - url: https://dashboard.example.com
-      title: Grafana Dashboard
-      icon: dashboard
-      type: admin-dashboard
+  name: billing-api
 spec:
-  # Kind-specific specification block
+  type: openapi
+  lifecycle: production
+  owner: group:default/billing-team
+  definition:
+    $text: ./openapi/billing.yaml
 ```
 
-### Naming & Metadata Constraints
-- **`name`** and **`namespace`**: Subject to Kubernetes DNS label rules. Must be between 1 and 63 characters, contain only lowercase alphanumeric characters (`a-z`, `0-9`) or hyphens (`-`), and start/end with an alphanumeric character (`^[a-z0-9]+(-[a-z0-9]+)*$`).
-- **`tags`**: Must be strings of lowercase alphanumeric characters, hyphens, or colons (`^[a-z0-9:-]+$`).
-- **`labels` vs `annotations`**: **Label values** have strict Kubernetes character rules: max 63 characters, matching `^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`. Do not store arbitrary strings (like names with spaces or special characters) in labels, or validation will fail. Use labels exclusively for filterable, machine-friendly classifications. For arbitrary or human-readable data (e.g., service IDs, responsible person, availability tier), use **annotations** which accept freeform strings.
-- **`apiVersion`**: All entity kinds (`Component`, `API`, `Resource`, `System`, `Domain`, `User`, `Group`, `Location`) use `backstage.io/v1alpha1`. **Exception:** `Template` entities use `backstage.io/v1beta2` (or `scaffolder.backstage.io/v1beta3`). Using `v1alpha1` on a Template will fail validation.
-- **Runtime System Fields**: Fields like `uid` (unique identifier) and `etag` (optimistic concurrency hash) are managed automatically by Backstage processors at runtime. **Never hardcode `uid` or `etag` in source YAML files.**
+The file must exist at the referenced location. Write `definition` as the mapping above; `definition: $text: ./openapi.yaml` is invalid YAML. `$text` reads a file as a string; `$json` and `$yaml` embed parsed structures, so they do not supply the string expected here. Relative substitutions resolve from the descriptor's folder, not from `backstage.io/source-location`.
 
----
+For runtime-generated contracts, use a backend-readable specification URL if it is suitable for the installation, or suggest a deliberate export process. Do not invent a placeholder API definition or add CI jobs merely to satisfy a required field. Verify the actual contract, reader authentication, reachability, and update expectations.
 
-## 2. Entity References syntax
+For URLs outside configured integrations, Backstage may require an entry in `backend.reading.allow`, optionally restricted to paths. Local `file` locations do not support `$text`, `$json`, or `$yaml` substitutions. Identify required configuration without changing it unless requested.
 
-Many fields in `spec` (such as `owner`, `system`, `domain`, `providesApis`, `consumesApis`, `dependsOn`, `partOf`, `memberOf`, `parent`, `children`, `members`) accept **Entity References**.
+Check the API's server/base URL inside the contract; viewers can otherwise fall back to the Backstage instance's URL. A descriptor schema check does not validate the OpenAPI, GraphQL, Protobuf, or AsyncAPI contract itself.
 
-### Syntax
-The standard string format for an entity reference is:
-```
-[<kind>:][<namespace>/]<name>
-```
+See [descriptor substitutions](https://backstage.io/docs/features/software-catalog/descriptor-format/#substitutions-in-the-descriptor-format) and [catalog configuration](https://backstage.io/docs/features/software-catalog/configuration/).
 
-### Evaluation Rules
-- **Explicit format (recommended)**: `group:default/billing-team` or `system:default/billing-system`.
-- **Default namespace**: If `<namespace>/` is omitted, it defaults to `default` (or the namespace of the referencing entity). Example: `group:billing-team` evaluates to `group:default/billing-team`.
-- **Default kind**: If `<kind>:` is omitted, Backstage infers the kind based on the field's expected type (e.g., in `providesApis`, `billing-api` infers `api:default/billing-api`).
+## Integrations and custom metadata
 
----
+Use annotations for installed plugins and confirmed sources, rather than adding an integration checklist to every entity.
 
-## 3. Entity Kinds & Specifications
+| Annotation | Purpose and value |
+| --- | --- |
+| `backstage.io/techdocs-ref` | TechDocs source, usually `dir:.` or `dir:./docs`, relative to the descriptor and pointing to the folder containing `mkdocs.yml`. |
+| `github.com/project-slug` | GitHub repository slug, `owner/repository`, used by relevant plugins. |
+| `backstage.io/source-location` | Source code location, for example `url:https://github.com/example/billing/`; use a location type prefix and end folder URLs with `/`. Useful when the descriptor is stored apart from the source or inference would point to the wrong place. |
+| `backstage.io/view-url`, `backstage.io/edit-url` | Overrides for viewing or editing the entity's descriptor source. |
 
-### Component
-Represents a standalone software unit (microservice, website, library, data pipeline).
+Backstage adds `backstage.io/managed-by-location`, `backstage.io/managed-by-origin-location`, and `backstage.io/orphan` during processing. They describe ingestion state and are not substitutes for a source code location.
 
-**Spec Fields:**
-- `type` (**required**): Classification string. Common values: `service`, `website`, `library`, `common`, `data-pipeline`.
-- `lifecycle` (**required**): Maturity state. Common values: `experimental`, `active`, `production`, `deprecated`.
-- `owner` (**required**): Entity reference to a `Group` or `User`.
-- `system` (*optional*): Entity reference to the parent `System`.
-- `subcomponentOf` (*optional*): Entity reference to a parent `Component`.
-- `providesApis` (*optional*): Array of provided `API` entity references.
-- `consumesApis` (*optional*): Array of consumed `API` entity references.
-- `dependsOn` (*optional*): Array of component/resource entity references this component relies on.
+Source location is not universally mandatory for Azure DevOps or automatically an author-written field on every GitHub entity. Check the configured integration, source inference, and plugin documentation. For provider-specific keys such as `dev.azure.com/project-repo`, verify the installed plugin's expected value format and supported repository or folder URLs. Do not treat a browser's folder URL as proof that the backend reader supports it.
 
----
+Metadata is scoped to each entity document. Add needed annotations to each relevant entity; annotations on its System or a neighbouring YAML document are not inherited. A Resource need not point to the repository merely because its descriptor is stored there.
 
-### API
-Represents an interface or API contract provided by a component.
+For custom metadata, use keys such as `example.com/cmdb-id: "763"` or `example.com/business-owner: "Jane Doe"`. Attach them to the entity they describe; a CMDB application ID may describe the System, while a deployment classification may describe a Component. Preserve the existing organisation's keys and meaning.
 
-**Spec Fields:**
-- `type` (**required**): Format classification. Common values: `openapi`, `grpc`, `graphql`, `asyncapi`.
-- `lifecycle` (**required**): Maturity state (`experimental`, `active`, `production`, `deprecated`).
-- `owner` (**required**): Entity reference to owning `Group` or `User`.
-- `system` (*optional*): Entity reference to parent `System`.
-- `definition` (**required**): Raw text specification of the API (e.g., OpenAPI YAML string). In Backstage, this can also use the `$text:` file reader directive (e.g., `$text: ./openapi.yaml`). Note: `definition` cannot be empty or omitted; pointing to a live Swagger UI via `metadata.links` is **not** sufficient.
+Consult the [well-known annotations](https://backstage.io/docs/features/software-catalog/well-known-annotations/) and the installed plugin's own documentation for additional integrations.
 
-#### When there's no committed spec file (Runtime-Generated Specs)
-Very often, web services (e.g., Spring Boot, FastAPI, ASP.NET, Express) serve their OpenAPI/Swagger spec dynamically at runtime without committing a static file to git. When authoring `kind: API`, fill `definition` using one of these approaches (in order of preference):
-1. **Export & commit the spec in CI**: Have your CI pipeline fetch the runtime spec (e.g., via `curl`) and commit/bundle it as a static file, then reference it: `definition: $text: ./openapi.yaml`. Best option—versioned, diffable, and works offline.
-2. **Reference a readable URL**: Point directly to an accessible HTTP spec: `definition: $text: https://host/openapi.json`. Note: Requires the URL to be reachable by the Backstage backend process (not ideal for internal-only endpoints without ingress).
-3. **Inline a placeholder**: Inline a minimal, valid schema covering core endpoints, clearly commented as a placeholder. Least preferred—drifts from live reality.
+## File placement and discovery
 
----
+`catalog-info.yaml` is the recommended filename and the repository root is a common location. Neither is a format requirement. Follow existing layout and the actual discovery configuration; repositories can contain multiple files anywhere in the tree.
 
-### Resource
-Represents physical or virtual infrastructure needed by components (databases, S3 buckets, Kubernetes clusters, messaging topics).
+Common arrangements are a root file containing several YAML documents, one descriptor per software unit, or a `Location` file that points to distributed descriptors:
 
-**Spec Fields:**
-- `type` (**required**): Classification string (e.g., `database`, `s3-bucket`, `kubernetes-cluster`). Cloud infrastructure bundles are commonly modeled with a descriptive type such as `azure-infrastructure` or `terraform`.
-- `lifecycle` (**required**): Maturity state.
-- `owner` (**required**): Entity reference to owning team/user.
-- `system` (*optional*): Entity reference to parent `System`.
-- `dependsOn` / `dependencyOf` (*optional*): Arrays of entity references showing resource interdependencies. A `Component` typically links to its `Resource`s via `spec.dependsOn` (e.g., `resource:my-service-db`, `resource:my-service-infrastructure`).
-
----
-
-### System
-A collection of components, APIs, and resources collaborating to perform a broader business function.
-
-**Spec Fields:**
-- `owner` (**required**): Entity reference to owning team/user.
-- `domain` (*optional*): Entity reference to parent `Domain`.
-
----
-
-### Domain
-A high-level organizational boundary grouping related systems (e.g., aligning with department or business unit capabilities).
-
-**Spec Fields:**
-- `owner` (**required**): Entity reference to owning team/user.
-
----
-
-### User
-Represents an individual human in the catalog.
-
-**Spec Fields:**
-- `profile` (*optional*): Object containing `displayName`, `email`, and `picture` URL.
-- `memberOf` (**required**): Array of `Group` entity references this user belongs to.
-
----
-
-### Group
-Represents an organizational unit, team, or department.
-
-**Spec Fields:**
-- `type` (**required**): Classification string (e.g., `team`, `business-unit`, `department`).
-- `profile` (*optional*): Object containing `displayName`, `email`, and `picture` URL.
-- `parent` (*optional*): Entity reference to parent `Group`.
-- `children` (*optional*): Array of child `Group` references.
-- `members` (*optional*): Array of `User` references belonging directly to this group.
-
----
-
-### Template
-Represents a Software Scaffolder template used by developers to generate new repositories or components.
-
-**Spec Fields:**
-- `apiVersion` (**required**): Must be `backstage.io/v1beta2` or `scaffolder.backstage.io/v1beta3` (do NOT use `v1alpha1`).
-- `type` (**required**): What this template creates (e.g., `service`, `website`).
-- `lifecycle` (**required**) & `owner` (**required**).
-- `parameters`: Array of JSON Schema objects defining user input forms.
-- `steps`: Array of scaffolder execution steps (e.g., `fetch:template`, `publish:github`, `catalog:register`).
-- `output`: Object describing template outputs (e.g., links to created repo or catalog entity).
-
----
-
-### Location
-Used to point Backstage processors to external catalogs or directories.
-
-**Spec Fields:**
-- `type` (**required**): Reader type (e.g., `url`, `file`).
-- `target` (**required**): Path or URL to target descriptor or directory.
-- `targets` (*optional*): Array of target paths/URLs.
-
----
-
-## 4. Well-Known Annotations & Relations
-
-### Well-Known Annotations (`metadata.annotations`)
-- `backstage.io/techdocs-ref`: Points to TechDocs documentation source (e.g., `dir:.` or `dir:./docs`).
-- `backstage.io/source-location`: Explicit repository source URL. **Requires a type prefix** (e.g., `url:https://github.com/org/repo/`). If pointing to a subdirectory, **must end with a trailing slash** (`url:https://github.com/org/repo/tree/main/subdir/`).
-- `backstage.io/view-url` / `backstage.io/edit-url`: Custom UI links for viewing or editing source.
-- `github.com/project-slug`: GitHub integration (`owner/repo`).
-- `gitlab.com/project-slug`: GitLab integration (`group/subgroup/repo`).
-- `dev.azure.com/project-repo`: Azure DevOps integration (`<project>/<repo>`).
-- `sentry.io/project-slug`: Sentry error tracking dashboard integration.
-- `pagerduty.com/integration-key`: PagerDuty service key for on-call status.
-- `circleci.com/project-slug` / `jenkins.io/job-full-name`: CI/CD pipeline tracking.
-
-#### Source Location & Monorepo Rules
-When configuring source locations, distinguish between author-written and auto-managed annotations:
-
-| Annotation | Points to | Set by |
-|---|---|---|
-| `backstage.io/source-location` | The actual **source code** location | **Manually by author** (used when catalog file is stored apart from code) |
-| `backstage.io/managed-by-location` | Where the `catalog-info.yaml` **itself** was fetched from | **Automatically by Backstage** on ingestion (do NOT hand-write) |
-| `backstage.io/managed-by-origin-location` | The original registered ingestion location | **Automatically by Backstage** (do NOT hand-write) |
-
-- **Monorepos & Azure DevOps limitation**: For GitHub, pointing a component to a monorepo subdirectory works via folder URLs (`url:https://github.com/org/repo/tree/main/subdir/`). However, **Azure DevOps has no clean folder-tree URL** (its web UI uses `?path=/subdir` query strings, which are malformed for source-locations). For Azure DevOps monorepos, point `source-location` to the repository root instead.
-
-#### Custom Organizational Metadata
-When storing organization-specific or custom metadata that has no well-known Backstage key (e.g., service ID, availability classification, team contact), use **annotations** (not `labels`, whose values must satisfy strict Kubernetes character rules). A domain prefix you own (`<domain>/<key>`) is recommended to avoid key collisions:
 ```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Location
 metadata:
-  annotations:
-    acme.com/technical-service-id: "6081"
-    acme.com/availability-classification: "3 - Important"
-    acme.com/team-responsible: "Jane Doe"
+  name: billing-catalog
+spec:
+  targets:
+    - ./services/billing/catalog-info.yaml
+    - ./packages/billing-client/catalog-info.yaml
 ```
-Bare (unprefixed) custom keys such as `system-id`, `business-owner`, or `availability-classification` are also accepted by the catalog engine and appear in real-world descriptors, but the prefixed form is safer. Do not use reserved prefixes (`backstage.io/`, `kubernetes.io/`) for custom keys. In practice this CMDB-style metadata is most often attached to the `System` entity that represents the overall product.
 
-#### Annotations Are Not Inherited Across Documents
-When a single repository's `catalog-info.yaml` defines multiple entities (separated by `---`), annotations like `backstage.io/source-location` and `dev.azure.com/project-repo` are **not** shared between documents. Repeat them on each entity that maps to that repository. Entities that do not correspond to source in that repo (e.g., a `Resource` describing a managed database) typically omit `source-location`.
+These targets must exist. Omitting `spec.type` allows the reader type to be inherited. Use reader-supported target patterns only when the configured reader or discovery provider documents them; a Location is not a universal directory scanner.
 
-### Well-Known Relations
-Relations are built implicitly via spec fields or explicitly via catalog processors:
-- `ownedBy` / `ownerOf` (`spec.owner`)
-- `partOf` / `hasPart` (`spec.system`, `spec.domain`, `spec.subcomponentOf`)
-- `providesApi` / `apiProvidedBy` (`spec.providesApis`)
-- `consumesApi` / `apiConsumedBy` (`spec.consumesApis`)
-- `dependsOn` / `dependencyOf` (`spec.dependsOn`)
-- `memberOf` / `hasMember` (`spec.memberOf`, `spec.members`)
-- `childOf` / `parentOf` (`spec.parent`, `spec.children`)
+Catalog metadata becomes visible through manual URL registration, configured locations, software templates that register their output, or external providers. For manual registration, supply the descriptor URL rather than the repository home page. Confirm the intended route to ingestion; do not infer registration from file placement.
 
----
+Check `catalog.rules` or location-specific rules for allowed kinds. The documented default allows `Component`, `API`, and `Location`; an explicitly supplied `catalog.rules` list replaces that default. Descriptors of other kinds can be well formed while still being rejected by the installation.
 
-## 5. Complete Copy-Pasteable Examples
+Reuse the organisation's authoritative Group/User and architecture sources. Centralising these entities is a local governance choice, not a Backstage format rule. Avoid introducing duplicate identities through competing files or providers.
 
-### Multi-Entity Microservice Architecture
-The following production-ready example demonstrates a Domain, System, Component, API, and Resource defined together:
+See the [Software Catalog overview](https://backstage.io/docs/features/software-catalog/) and [catalog configuration](https://backstage.io/docs/features/software-catalog/configuration/).
+
+## Validation
+
+Distinguish these checks when reporting results:
+
+1. **YAML:** Parse all documents with a YAML parser, including duplicate-key checks where supported. Do not split raw text on `---`, which can occur inside scalar content.
+2. **Schema and formats:** Validate the envelope, metadata field formats, and the chosen kind using the target Backstage version and local policies. Built-in kind validators alone do not enforce every field-format or processing rule. An API's `$text` mapping becomes a string during substitution; validate the resolved value as well as the source YAML.
+3. **Relationships and contracts:** Check reference resolution, expected target kinds, duplicate `(kind, namespace, name)` identities, and actual API definitions. Referenced entities can come from other locations or providers; local absence does not prove a missing catalog entity.
+4. **Ingestion:** Check reader access, substitution support, allowed kinds, configured processors, and discovery. Local validation cannot establish successful ingestion or enabled plugin behaviour.
+
+The bundled `scripts/validate-catalog-info.mjs` covers checks 1 to 3 offline. It parses every document with duplicate-key detection, runs the official `@backstage/catalog-model` envelope, field-format, and kind validators plus the v1beta3 Template validator, resolves `$text`, `$json`, and `$yaml` substitutions against the descriptor folder, resolves every reference field with the built-in processor's defaults, flags `dependsOn` entries without a kind, reports duplicate identities across the given files, checks relative `Location` targets, and rejects catalog output fields. Install its dependencies once with `npm install --prefix <skill-dir>/scripts`; pass `--json` for machine-readable output. Use the repository's own validator or pinned Backstage packages when they exist, since the bundled versions may differ from the installation's. Third-party validators remain supplementary. Check 4 always needs the installation's configuration or an observed ingestion.
+
+The [catalog schemas](https://github.com/backstage/backstage/tree/master/packages/catalog-model/src/schema) and [field validators](https://github.com/backstage/backstage/blob/master/packages/catalog-model/src/validation/makeValidator.ts) can resolve discrepancies in prose documentation. Prefer the target release's source for version-specific work.
+
+## Examples
+
+These examples illustrate descriptor structure. Replace example names and verify referenced owners, contracts, configuration, and target files before using them in a catalog.
+
+### Minimal library
 
 ```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: billing-client
+  description: Client library for the Billing API.
+spec:
+  type: library
+  lifecycle: production
+  owner: group:default/billing-team
+```
+
+### Related entities in one file
+
+The Group is included to show its required empty children list; reuse an existing Group if the organisation already manages it. The Domain, System, service, API, and database have separate identities. Relationships are expressed through `spec` fields.
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: billing-team
+spec:
+  type: team
+  children: []
+---
 apiVersion: backstage.io/v1alpha1
 kind: Domain
 metadata:
-  name: e-commerce
-  description: Core e-commerce capabilities including catalog, checkout, and order fulfillment.
+  name: finance
 spec:
-  owner: group:retail-execs
+  owner: group:default/billing-team
 ---
 apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
-  name: checkout-system
-  description: Services and infrastructure supporting customer checkout and payment processing.
+  name: billing
 spec:
-  owner: group:checkout-team
-  domain: domain:default/e-commerce
+  owner: group:default/billing-team
+  domain: domain:default/finance
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: checkout-service
-  title: Checkout Processing Service
-  description: Handles cart validation, order placement, and payment orchestration.
-  tags:
-    - typescript
-    - nodejs
-    - aws
-  annotations:
-    backstage.io/techdocs-ref: dir:.
-    github.com/project-slug: retail-org/checkout-service
-    pagerduty.com/integration-key: PD12345678
-  links:
-    - url: https://grafana.internal.net/d/checkout-service
-      title: Production Grafana Dashboard
-      icon: dashboard
+  name: billing-service
 spec:
   type: service
   lifecycle: production
-  owner: group:default/checkout-team
-  system: system:default/checkout-system
+  owner: group:default/billing-team
+  system: system:default/billing
   providesApis:
-    - api:default/checkout-api
-  consumesApis:
-    - api:default/payment-gateway-api
+    - api:default/billing-api
   dependsOn:
-    - resource:default/checkout-db
+    - resource:default/billing-db
 ---
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
-  name: checkout-api
-  description: OpenAPI contract for placing orders and querying cart status.
+  name: billing-api
 spec:
   type: openapi
   lifecycle: production
-  owner: group:default/checkout-team
-  system: system:default/checkout-system
+  owner: group:default/billing-team
+  system: system:default/billing
   definition: |
-    openapi: 3.0.0
+    openapi: 3.0.3
     info:
-      title: Checkout API
+      title: Example Billing API
       version: 1.0.0
+    servers:
+      - url: https://billing.example.com
     paths:
-      /orders:
-        post:
-          summary: Create a new order
+      /invoices:
+        get:
           responses:
-            '201':
-              description: Order created successfully
+            '200':
+              description: Invoices retrieved.
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: checkout-db
-  description: PostgreSQL database storing orders, transaction states, and cart items.
-  tags:
-    - postgres
-    - rds
+  name: billing-db
 spec:
   type: database
-  lifecycle: production
-  owner: group:default/checkout-team
-  system: system:default/checkout-system
+  owner: group:default/billing-team
+  system: system:default/billing
 ```
 
-### Single-Repo System Bundle (Azure DevOps)
-This mirrors a common real-world layout: one repository's `catalog-info.yaml` declaring the `System` (with custom CMDB annotations), its service and client `Component`s, backing `Resource`s, and the provided `API`. Note the repeated `source-location`/`project-repo` annotations per code-backed entity, the `$text` file reference for the API spec, and the `azure-infrastructure` resource type.
+### User with no direct memberships
 
 ```yaml
 apiVersion: backstage.io/v1alpha1
-kind: System
+kind: User
 metadata:
-  name: time-hub
-  title: Time Hub
-  description: Time tracking and readiness planning.
-  annotations:
-    acme.com/system-id: "763"
-    acme.com/business-owner: "Jane Doe"
-    acme.com/lifecycle-classification: "Growth"
+  name: jane.doe
 spec:
-  owner: group:engineering-managers
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
+  profile:
+    displayName: Jane Doe
+  memberOf: []
+```
+
+### Template metadata and one step
+
+This demonstrates the modern envelope and a log step; it does not create a software project. Verify action availability in the target Scaffolder.
+
+```yaml
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
 metadata:
-  name: time-hub-api
-  title: Time Hub API
-  description: Backend for Time Hub.
-  tags:
-    - azure
-    - dotnet
-    - csharp
-  annotations:
-    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
-    dev.azure.com/project-repo: BIT/EM_TimeHub
-  links:
-    - url: https://timehub-api.example.com/scalar/v1
-      title: Scalar API reference
-      icon: docs
+  name: catalog-demo
 spec:
   type: service
-  lifecycle: production
-  owner: group:engineering-managers
-  system: system:time-hub
-  providesApis:
-    - api:time-hub-api
-  dependsOn:
-    - resource:time-hub-db
-    - resource:time-hub-infrastructure
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: time-hub-client
-  title: Time Hub Client
-  description: Client for Time Hub.
-  tags:
-    - azure
-    - react
-    - typescript
-  annotations:
-    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
-    dev.azure.com/project-repo: BIT/EM_TimeHub
-spec:
-  type: website
-  lifecycle: production
-  owner: group:engineering-managers
-  system: system:time-hub
-  consumesApis:
-    - api:time-hub-api
----
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: time-hub-db
-  title: Time Hub DB
-  description: Stores Time Hub data.
-  tags:
-    - azure
-    - sql
-spec:
-  type: database
-  lifecycle: production
-  owner: group:engineering-managers
-  system: system:time-hub
----
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: time-hub-infrastructure
-  title: Time Hub Infrastructure
-  description: Azure infrastructure for Time Hub.
-  tags:
-    - azure
-    - infrastructure
-spec:
-  type: azure-infrastructure
-  lifecycle: production
-  owner: group:engineering-managers
-  system: system:time-hub
----
-apiVersion: backstage.io/v1alpha1
-kind: API
-metadata:
-  name: time-hub-api
-  title: Time Hub API
-  description: REST API for identity, configuration, and readiness.
-  annotations:
-    backstage.io/source-location: url:https://dev.azure.com/acme/BIT/_git/EM_TimeHub/
-  links:
-    - url: https://timehub-api.example.com/scalar/v1
-      title: Scalar API reference
-      icon: docs
-spec:
-  type: openapi
-  lifecycle: production
-  owner: group:engineering-managers
-  system: system:time-hub
-  definition:
-    $text: ./openapi/timehub-api-v1.json
+  owner: group:default/billing-team
+  steps:
+    - id: log
+      name: Log a message
+      action: debug:log
+      input:
+        message: Catalog descriptor demonstration.
 ```
 
-### Minimal Library Component (GitHub)
-GitHub-discovered repos often need only TechDocs and tags; `source-location` is managed automatically by Backstage and can be omitted.
+## Mapping an existing registry
 
-```yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: splashdown
-  title: Splashdown
-  description: HTML-to-Markdown library for preparing web content for agent workflows.
-  annotations:
-    backstage.io/techdocs-ref: dir:.
-  links:
-    - url: https://docs.example.com/splashdown/
-      title: DevDocs
-      icon: docs
-      type: documentation
-  tags:
-    - html
-    - markdown
-    - typescript
-spec:
-  type: library
-  lifecycle: active
-  owner: group:web-team
-```
+Use the source record's meaning to choose the kind; a CMDB's word for an application or service does not determine its Backstage kind.
 
----
+| Source concept | Possible mapping |
+| --- | --- |
+| Business capability or related area | `Domain` |
+| Product or cooperating application bundle | `System` |
+| Deployable service, website, or reusable library | `Component` |
+| Interface or contract | `API` |
+| Database, bucket, or queue | `Resource` |
+| Responsible team or organisational unit | `Group` |
+| Individual person | `User`, or descriptive metadata when not the accountable owner |
 
-## 6. CLI & Automated Validation
-
-To validate descriptor files locally or in CI/CD pipelines before ingestion, the standard community tool is `@roadiehq/backstage-entity-validator`. It executes the exact same schema and type checks as the Backstage catalog engine.
-
-Execute the CLI directly via npx (passing filenames as positional arguments):
-```bash
-# Validate a single descriptor
-npx -y @roadiehq/backstage-entity-validator catalog-info.yaml
-
-# Validate all descriptors across a monorepo
-npx -y @roadiehq/backstage-entity-validator "services/*/catalog-info.yaml"
-```
-
----
-
-## 7. File Placement, Discovery & Scanner Conventions
-
-When setting up catalog discovery or writing custom repo scanners, follow these placement and naming conventions:
-
-### File Placement & Naming Rules
-1. **Default Location**: Place a descriptor file named `catalog-info.yaml` at the root of the repository. Auto-discovery processors and the Backstage "register existing component" flow expect this exact name at the default branch root.
-2. **Monorepos**: Two common, accepted patterns:
-   - **Multi-document root**: A single root `catalog-info.yaml` with multiple entities separated by `---` (best for tightly-coupled packages).
-   - **Distributed files**: One `catalog-info.yaml` per package/component subfolder (e.g., `packages/app/catalog-info.yaml`), discovered via glob pattern or tied together by a root `kind: Location` entity using `spec.targets`.
-3. **Org Entities (`Group` / `User`) & Central Architecture (`Domain` / `System`)**: Do not scatter org entities or top-level Systems/Domains across individual service repositories. Centralize them in a dedicated org/architecture repository or a root `catalog/` directory, registered once. (Note: Groups and Users are typically ingested from an identity provider like Entra ID, Okta, or GitHub Teams rather than hand-written).
-4. **`Location` Kind as Glue**: Use a root `Location` descriptor with `spec.targets` to reference files or URLs that reside outside standard discovery paths.
-5. **Documentation Site Gotcha**: Do not drop machine catalog YAML files into documentation site content folders (e.g., Astro Starlight `src/content/docs`), as this can break static doc builds or cause the catalog file to be ignored. Keep catalog metadata separate from rendered doc pages.
-
-### Repo Scanner Contract
-If building an automated tool or scanner to locate and identify descriptor files across many repositories without running a Backstage backend:
-- **Filename Matching**: Search for files named exactly `catalog-info.yaml` (root first, then `**/catalog-info.yaml` for monorepos). Exclude build artifacts and dependencies (`node_modules`, `dist`, `.git`, `bin`, `obj`).
-- **Robust Content Signature**: Verify that the YAML document has an `apiVersion` starting with `backstage.io/` or `scaffolder.backstage.io/` **and** a valid `kind` (`Component`, `API`, `Resource`, `System`, `Domain`, `Group`, `User`, `Template`, `Location`). This filters out stray YAML files (like docker-compose or CI workflows) and correctly identifies valid descriptors even if renamed.
-- **Multi-Document Handling**: Always split files on `---` to inspect each YAML document independently.
-
----
-
-## 8. Mapping an Existing CMDB or Service Registry
-
-When bootstrapping Backstage from an existing CMDB, APM, or internal service registry (e.g., ServiceNow APM or custom technical service registries), use this translation table to map legacy records to Backstage kinds:
-
-| CMDB / APM Concept | Backstage Kind | Notes & Mapping Rules |
-|---|---|---|
-| Business Unit | `Domain` | Top-level organizational grouping. |
-| Capability / System Grouping | `Domain` or `System` | Choose based on architecture granularity. |
-| Technical Service / Application | `System` | Represents the overall product or service bundle; often carries the CMDB ID. |
-| Deployable Unit / Repository | `Component` | Set `spec.type` appropriately (`service`, `website`, `library`). |
-| Exposed Interface / Contract | `API` | Linked via `providesApis` and `consumesApis`. |
-| Database, Bucket, Queue | `Resource` | Linked via `dependsOn`. |
-| Team / Squad | `Group` | Primary target for `spec.owner`. |
-| Responsible Person | `User` or annotation | Prefer setting `spec.owner` to a `Group`; record individuals via metadata annotations. |
-
-### Migration Gotchas
-- **Single-Valued `spec.owner`**: Backstage requires `spec.owner` to be a single entity reference (preferably a `Group`). If your CMDB records both an "Owned by" department and a "Maintenance team", assign the active maintenance team as `spec.owner` and record the organizational owner via a custom metadata annotation or on the parent `System` entity.
-- **Preserve CMDB Identifiers**: Record legacy IDs (e.g., service IDs, availability tiers, cost centers) as custom organizational annotations (e.g., `acme.com/cmdb-service-id: "6081"`). Remember that Kubernetes label character rules forbid spaces and special characters, so use annotations for arbitrary strings.
-- **Lifecycle Mapping**: Translate CMDB status strings to standard Backstage lifecycle states (e.g., map `"In Production"` or `"Live"` to `production`; `"In Development"` to `experimental` or `active`).
+Preserve legacy IDs with existing custom metadata conventions. Distinguish business ownership from the single accountable `spec.owner`; do not automatically replace one with a maintenance contact. Map lifecycle values deliberately to the installation's taxonomy rather than imposing a fixed set of states. Keep migration mappings explicit when one source record becomes several entities.
