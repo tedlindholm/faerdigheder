@@ -96,6 +96,21 @@ apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: billing-api
+  namespace: <string> # Optional: Max 63 chars, alphanumeric separated by '-', defaults to 'default'
+  title: <string> # Optional: Human-readable display name
+  description: <string> # Optional: Summary of functionality
+  labels: # Optional: Key-value classification pairs
+    backstage.io/tier: tier-1
+  annotations: # Optional: Plugin integration key-value pairs
+    backstage.io/techdocs-ref: dir:.
+  tags: # Optional: Array of lowercase strings
+    - java
+    - spring-boot
+  links: # Optional: Array of external hyperlinks
+    - url: https://dashboard.example.com
+      title: Grafana Dashboard
+      icon: dashboard
+      type: admin-dashboard
 spec:
   type: openapi
   lifecycle: production
@@ -105,6 +120,14 @@ spec:
 ```
 
 The file must exist at the referenced location. Write `definition` as the mapping above; `definition: $text: ./openapi.yaml` is invalid YAML. `$text` reads a file as a string; `$json` and `$yaml` embed parsed structures, so they do not supply the string expected here. Relative substitutions resolve from the descriptor's folder, not from `backstage.io/source-location`.
+
+### Naming & Metadata Constraints
+- **`name`**: Must be between 1 and 63 characters, consisting of sequences of alphanumeric characters (`a-z`, `A-Z`, `0-9`) possibly separated by a single `-`, `_` or `.` (`^[a-zA-Z0-9]+([-_.][a-zA-Z0-9]+)*$`). Uppercase letters, underscores and dots are therefore legal (e.g., `visits-tracking-service`, `CircleciBuildsDumpV2_avro_gcs`), so repository names carrying capitals or underscores are valid as-is. Lowercase-and-hyphens is a common house *preference*, not a format constraint. Names are unique per kind and namespace, and uniqueness is case insensitive.
+- **`namespace`**: Stricter than `name`. Max 63 characters, consisting of sequences of alphanumeric characters (`a-z`, `A-Z`, `0-9`) possibly separated by `-` (`^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$`); no underscores or dots. Namespace names are case insensitive and rendered as lowercase in most places.
+- **`tags`**: Must be strings of lowercase alphanumeric characters, hyphens, or colons (`^[a-z0-9:-]+$`).
+- **`labels` vs `annotations`**: **Label values** have strict Kubernetes character rules: max 63 characters, matching `^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`. Do not store arbitrary strings (like names with spaces or special characters) in labels, or validation will fail. Use labels exclusively for filterable, machine-friendly classifications. For arbitrary or human-readable data (e.g., service IDs, responsible person, availability tier), use **annotations** which accept freeform strings.
+- **`apiVersion`**: All entity kinds (`Component`, `API`, `Resource`, `System`, `Domain`, `User`, `Group`, `Location`) use `backstage.io/v1alpha1`. **Exception:** `Template` entities use `backstage.io/v1beta2` (or `scaffolder.backstage.io/v1beta3`). Using `v1alpha1` on a Template will fail validation.
+- **Runtime System Fields**: Fields like `uid` (unique identifier) and `etag` (optimistic concurrency hash) are managed automatically by Backstage processors at runtime. **Never hardcode `uid` or `etag` in source YAML files.**
 
 For runtime-generated contracts, use a backend-readable specification URL if it is suitable for the installation, or suggest a deliberate export process. Do not invent a placeholder API definition or add CI jobs merely to satisfy a required field. Verify the actual contract, reader authentication, reachability, and update expectations.
 
@@ -141,6 +164,103 @@ Consult the [well-known annotations](https://backstage.io/docs/features/software
 
 Common arrangements are a root file containing several YAML documents, one descriptor per software unit, or a `Location` file that points to distributed descriptors:
 
+**Spec Fields:**
+- `type` (**required**): Classification string (e.g., `database`, `s3-bucket`, `kubernetes-cluster`). Cloud infrastructure bundles are commonly modeled with a descriptive type such as `azure-infrastructure` or `terraform`.
+- `lifecycle` (**required**): Maturity state.
+- `owner` (**required**): Entity reference to owning team/user.
+- `system` (*optional*): Entity reference to parent `System`.
+- `dependsOn` / `dependencyOf` (*optional*): Arrays of entity references showing resource interdependencies. A `Component` typically links to its `Resource`s via `spec.dependsOn` (e.g., `resource:my-service-db`, `resource:my-service-infrastructure`).
+
+---
+
+### System
+A collection of components, APIs, and resources collaborating to perform a broader business function.
+
+**Spec Fields:**
+- `owner` (**required**): Entity reference to owning team/user.
+- `domain` (*optional*): Entity reference to parent `Domain`.
+
+---
+
+### Domain
+A high-level organizational boundary grouping related systems (e.g., aligning with department or business unit capabilities).
+
+**Spec Fields:**
+- `owner` (**required**): Entity reference to owning team/user.
+- `subdomainOf` (*optional*): Entity reference to a parent `Domain` this domain is part of (defaults to kind `Domain`, e.g., `audio-domain`).
+
+---
+
+### User
+Represents an individual human in the catalog.
+
+**Spec Fields:**
+- `profile` (*optional*): Object containing `displayName`, `email`, and `picture` URL.
+- `memberOf` (**required**): Array of `Group` entity references this user belongs to.
+
+---
+
+### Group
+Represents an organizational unit, team, or department.
+
+**Spec Fields:**
+- `type` (**required**): Classification string (e.g., `team`, `business-unit`, `department`).
+- `profile` (*optional*): Object containing `displayName`, `email`, and `picture` URL.
+- `parent` (*optional*): Entity reference to parent `Group`.
+- `children` (*optional*): Array of child `Group` references.
+- `members` (*optional*): Array of `User` references belonging directly to this group.
+
+---
+
+### Template
+Represents a Software Scaffolder template used by developers to generate new repositories or components.
+
+**Spec Fields:**
+- `apiVersion` (**required**): Must be `backstage.io/v1beta2` or `scaffolder.backstage.io/v1beta3` (do NOT use `v1alpha1`).
+- `type` (**required**): What this template creates (e.g., `service`, `website`).
+- `lifecycle` (**required**) & `owner` (**required**).
+- `parameters`: Array of JSON Schema objects defining user input forms.
+- `steps`: Array of scaffolder execution steps (e.g., `fetch:template`, `publish:github`, `catalog:register`).
+- `output`: Object describing template outputs (e.g., links to created repo or catalog entity).
+
+---
+
+### Location
+Used to point Backstage processors to external catalogs or directories.
+
+**Spec Fields:**
+- `type` (**required**): Reader type (e.g., `url`, `file`).
+- `target` (**required**): Path or URL to target descriptor or directory.
+- `targets` (*optional*): Array of target paths/URLs.
+
+---
+
+## 4. Well-Known Annotations & Relations
+
+### Well-Known Annotations (`metadata.annotations`)
+- `backstage.io/techdocs-ref`: Points to TechDocs documentation source (e.g., `dir:.` or `dir:./docs`).
+- `backstage.io/source-location`: Explicit repository source URL. **Requires a type prefix** (e.g., `url:https://github.com/org/repo/`). If pointing to a subdirectory, **must end with a trailing slash** (`url:https://github.com/org/repo/tree/main/subdir/`).
+- `backstage.io/view-url` / `backstage.io/edit-url`: Custom UI links for viewing or editing source.
+- `github.com/project-slug`: GitHub integration (`owner/repo`).
+- `gitlab.com/project-slug`: GitLab integration (`group/subgroup/repo`).
+- `dev.azure.com/project-repo`: Azure DevOps integration (`<project>/<repo>`).
+- `sentry.io/project-slug`: Sentry error tracking dashboard integration.
+- `pagerduty.com/integration-key`: PagerDuty service key for on-call status.
+- `circleci.com/project-slug` / `jenkins.io/job-full-name`: CI/CD pipeline tracking.
+
+#### Source Location & Monorepo Rules
+When configuring source locations, distinguish between author-written and auto-managed annotations:
+
+| Annotation | Points to | Set by |
+|---|---|---|
+| `backstage.io/source-location` | The actual **source code** location | **Manually by author** (used when catalog file is stored apart from code) |
+| `backstage.io/managed-by-location` | Where the `catalog-info.yaml` **itself** was fetched from | **Automatically by Backstage** on ingestion (do NOT hand-write) |
+| `backstage.io/managed-by-origin-location` | The original registered ingestion location | **Automatically by Backstage** (do NOT hand-write) |
+
+- **Monorepos & Azure DevOps limitation**: For GitHub, pointing a component to a monorepo subdirectory works via folder URLs (`url:https://github.com/org/repo/tree/main/subdir/`). However, **Azure DevOps has no clean folder-tree URL** (its web UI uses `?path=/subdir` query strings, which are malformed for source-locations). For Azure DevOps monorepos, point `source-location` to the repository root instead.
+
+#### Custom Organizational Metadata
+When storing organization-specific or custom metadata that has no well-known Backstage key (e.g., service ID, availability classification, team contact), use **annotations** (not `labels`, whose values must satisfy strict Kubernetes character rules). A domain prefix you own (`<domain>/<key>`) is recommended to avoid key collisions:
 ```yaml
 apiVersion: backstage.io/v1alpha1
 kind: Location

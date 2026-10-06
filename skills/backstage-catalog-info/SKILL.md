@@ -16,6 +16,26 @@ Describe the actual software and its accountable owner in catalog YAML, then pro
 5. **Validate** with the bundled script, then fix every error and read every warning.
 6. **Report** what changed, what was checked, and what remains unverified.
 
+### Phase 2 — Populate Envelope & Metadata
+2. Define the top-level envelope (`apiVersion`, `kind`, and `metadata`):
+   - `apiVersion`: Use `backstage.io/v1alpha1` for all kinds **except** `Template`. For `Template` entities, use `backstage.io/v1beta2` or `scaffolder.backstage.io/v1beta3`. Using `v1alpha1` on a Template will fail validation.
+   - `name` (**required**): 1–63 characters, alphanumeric (`a-z`, `A-Z`, `0-9`) sequences possibly separated by `-`, `_` or `.` (`^[a-zA-Z0-9]+([-_.][a-zA-Z0-9]+)*$`). Uppercase, underscores and dots are legal (e.g., `CircleciBuildsDumpV2_avro_gcs`); lowercase-and-hyphens is only a house preference, so do not rename a valid name to satisfy it.
+   - `namespace` (*optional*): Defaults to `"default"` if omitted. Stricter than `name`: max 63 characters, alphanumeric sequences possibly separated by `-` only (no underscores or dots).
+   - `title` (*optional*): Human-readable display name (e.g., `"Billing Processing Service"`).
+   - `description` (*optional but recommended*): Clear summary of the entity's functionality.
+   - `tags` (*optional*): Array of lowercase string tags for filtering (e.g., `["java", "spring-boot", "aws"]`).
+   - `labels` (*optional*): Key-value pairs for Kubernetes-style classification and filtering. Max 63 chars per value, alphanumeric/hyphens/dots/underscores without spaces. Use `annotations` for freeform or custom org strings.
+   - `links` (*optional*): Array of external URLs (each containing `url`, and optionally `title`, `icon`, `type`).
+   - **Do NOT include runtime system fields**: Never hardcode `uid`, `etag`, or `status` in source YAML files.
+
+### Phase 3 — Specify Kind-Specific `spec` & Relations
+3. Populate the `spec` block according to the entity kind:
+   - Always specify `owner` (entity ref to a `Group` or `User`, e.g., `group:billing-team` or `user:janedoe`) for `Component`, `API`, `Resource`, `System`, `Domain`, and `Template`.
+   - For `Component`, `API`, and `Resource`: Include `lifecycle` (`experimental`, `active`, `production`, `deprecated`) and optional `system` reference.
+   - For `Component`: Set `type` (`service`, `website`, `library`, etc.), and map dependencies using `providesApis`, `consumesApis`, `dependsOn`, and `subcomponentOf`.
+   - For `API`: Set `type` (`openapi`, `grpc`, `graphql`, `asyncapi`) and provide the `definition` string (inline, `$text: ./openapi.yaml`, or `$text: https://...`). For runtime-generated specs (Swagger), export/commit in CI or reference a readable URL; pointing via `metadata.links` alone is invalid.
+   - For `System` / `Domain`: Set `domain` (on System) to build the organizational hierarchy; nest domains with `subdomainOf` (on Domain).
+
 | What is being catalogued | Kind | Required `spec` |
 | --- | --- | --- |
 | Service, website, library, pipeline, tool | `Component` | `type`, `lifecycle`, `owner` |
