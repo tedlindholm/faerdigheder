@@ -1,7 +1,7 @@
 # What the installed source does beyond the docs
 
 Read from `@tanstack/ai-code-mode` 0.5.2 (CM), `@tanstack/ai-code-mode-snippets` 0.4.24 (SN) and
-`@tanstack/ai-isolate-quickjs` 0.3.2 (QJ) on 14 October 2026. Line numbers are from those versions; re-read the
+`@tanstack/ai-isolate-quickjs` 0.3.2 (QJ) in the versions above. Line numbers are from those versions; re-read the
 source after an upgrade.
 
 ## Execution order (CM/create-code-mode-tool.ts)

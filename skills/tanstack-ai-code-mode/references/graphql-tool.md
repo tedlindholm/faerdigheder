@@ -28,8 +28,7 @@ what comes back. Built with `graphql` (the reference implementation) and TypeScr
 6. **Hand-declared tool.** The tool's generated stub (`Promise<unknown>`) is replaced by
    `declare function external_graphql(input: { query: string; variables?: Record<string, unknown> }): Promise<GraphQLAnswer>;`
    in both declaration copies: `declaration` with every field note for the compiler, `shown` with
-   `fieldNotes: false` for the model (root fields keep notes and arguments; object types show bare fields). The model's
-   copy was 64% of the full one in practice.
+   `fieldNotes: false` for the model (root fields keep notes and arguments; object types show bare fields).
 7. **Worked queries in the instructions.** Two short examples (several records by id in one call; one record in
    full) as JSON-escaped strings, and the rule that the answer informs the programme's choice but is never itself a
    result. Keep the examples' query strings as named constants shared with any authored snippet that uses them.
