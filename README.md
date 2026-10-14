@@ -58,7 +58,8 @@ Hack around with it. Make it your own.
     ├── backstage-catalog-info/
     ├── british-spelling/
     ├── semi-minify/
-    └── skill-creator/
+    ├── skill-creator/
+    └── tanstack-ai-code-mode/
 ```
 
 ## Reference
@@ -67,6 +68,7 @@ Hack around with it. Make it your own.
 - `british-spelling` — Enforce British English spelling and usage in project-owned text without rewriting external contracts.
 - `semi-minify` — Author-time identifier abbreviation for browser-only JavaScript to reduce network payload while keeping committed source legible.
 - `skill-creator` — Create and refine reusable skills with strong frontmatter, concise instructions, and supporting references where needed.
+- `tanstack-ai-code-mode` — Build and tune TanStack AI Code Mode with typed programmes, hand-declared tools, authored snippets, a GraphQL-as-one-tool pattern and what the packages do beyond their docs.
 
 ## Conventions
 
