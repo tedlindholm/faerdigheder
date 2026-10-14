@@ -40,7 +40,10 @@ Each execution:
 7. `createEventAwareBindings`, then `driver.createContext` (phase `create-context`), `execute`, `dispose` in
    `finally`: a fresh isolate per call (L244-346).
 8. Console lines are levelled by prefix `ERROR: `, `WARN: `, `INFO: ` and re-emitted as `code_mode:console` after
-   `execute`, before finish (L277-299).
+   `execute`, before finish (L277-299). The same strings are returned on `logs`. `chat` JSON.stringifies the whole
+   `{ success, result, logs, error }` object into the tool message, so `logs` enters the next prompt.
+   `emitCustomEvent` is how those events reach the stream; `chat`'s `executeToolCalls` forwards them as CUSTOM
+   chunks. `code_mode:execution_finished` is emitted and is absent from the typed `KnownCustomEvent` union.
 9. Every exit through `finish` emits `code_mode:execution_finished { timestamp, durationMs, phase, success,
    logCount, error }` (L144-178). `error.stack` is copied when present. `error.line` is on the result schema and
    on this payload, and the execute path never sets it (L313-327). `stripTypeScript` warns that a sucrase position
