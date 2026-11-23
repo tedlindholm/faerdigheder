@@ -1,6 +1,6 @@
 # Use cases
 
-<!-- Scope: replace this paragraph. Say whose behaviour the use cases describe (for example "how an editor sets up conditions in the backoffice"), and which screens are the project's own: only those get sketches. -->
+<!-- Scope: replace this paragraph. Say whose behaviour the use cases describe (for example "how a shopper checks out"), and which screens are the project's own: only those get sketches. -->
 
 Each use case lives in its own file, has an ID, and is covered by at least one test. This folder holds only use cases whose behaviour exists and is tested; the ones still to write, and drafts for behaviour not built yet, are in the work list (`Plans/USE_CASES.md`).
 
@@ -32,7 +32,7 @@ A good test of size: write the outcome as one sentence. If the sentence needs "a
 
 **Then** is the single outcome someone can observe. Be concrete: name the field or screen element and quote the text.
 
-Use fictional data only. No real customers, bookings, payment details or tokens.
+Use fictional data only. No real customers, orders, payment details or tokens.
 
 ## Sketches
 

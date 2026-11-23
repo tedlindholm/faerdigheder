@@ -6,8 +6,8 @@ The rules a repository's use case README states; [assets/README.md](../assets/RE
 
 A use case is one behaviour. Write the outcome as one sentence: if it needs "and", "unless" or "except when", it is more than one use case. The same rule with facts that give a different outcome is a separate use case, linked under **Related**.
 
-- Too big: "Rules on additional data handle text, numbers and missing keys."
-- Right size: "A key that was not sent counts as empty, so *is* `tier:gold` is false."
+- Too big: "Checkout handles discounts, delivery and payment."
+- Right size: "An empty basket cannot be checked out."
 
 ## IDs and files
 
@@ -19,7 +19,7 @@ A use case is one behaviour. Write the outcome as one sentence: if it needs "and
 
 | Field | Meaning |
 | --- | --- |
-| **Area** | The project's areas, for example *Backoffice*, *Syntax*, *Workflow*. |
+| **Area** | The project's areas, for example *Checkout*, *Search*, *Admin*. |
 | **GUI** | *Yes* when the use case is about a screen the project owns; otherwise *No*. |
 
 Leave out fields nobody maintains, such as an owner.
@@ -30,7 +30,7 @@ Leave out fields nobody maintains, such as an owner.
 - **When**: the single action.
 - **Then**: the single observable outcome. Name the field or screen element and quote the text.
 
-Fictional data only: no real customers, bookings, payment details or tokens.
+Fictional data only: no real customers, orders, payment details or tokens.
 
 ## Sketches
 

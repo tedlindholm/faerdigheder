@@ -11,17 +11,17 @@ interface RepoFile {
   readonly text: string;
 }
 
-const CONDITIONS = "tests/cms/conditions.test.ts";
-const NAME = "gold-member-sees-dinner";
+const CHECKOUT = "tests/checkout.test.ts";
+const NAME = "empty-basket-cannot-check-out";
 
 const document = (
   fileName: string,
   heading: string,
-  tests: readonly string[] = [CONDITIONS],
+  tests: readonly string[] = [CHECKOUT],
 ): RepoFile => ({
   path: `Docs/use-cases/${fileName}`,
   text: [
-    `# ${heading}: A gold member sees the dinner question`,
+    `# ${heading}: An empty basket cannot be checked out`,
     "",
     "| | |",
     "| --- | --- |",
@@ -34,7 +34,7 @@ const document = (
   ].join("\n"),
 });
 
-const useCase = (id: string, tests: readonly string[] = [CONDITIONS]): RepoFile =>
+const useCase = (id: string, tests: readonly string[] = [CHECKOUT]): RepoFile =>
   document(`${id}-${NAME}.md`, id, tests);
 
 const SKETCH = `Docs/use-cases/UC-001-${NAME}.svg`;
@@ -55,9 +55,9 @@ const index = (...ids: readonly string[]): RepoFile => ({
   text: ids.map((id) => `- [${id}](${id}-${NAME}.md)`).join("\n"),
 });
 
-const tagged = (id: string, file = CONDITIONS): RepoFile => ({
+const tagged = (id: string, file = CHECKOUT): RepoFile => ({
   path: file,
-  text: `test("${id}: gold, Pick 2, One missing", async () => {});`,
+  text: `test("${id}: an empty basket is refused", async () => {});`,
 });
 
 describe("which tests name a use case", () => {
@@ -65,10 +65,10 @@ describe("which tests name a use case", () => {
     const source = [
       'test("UC-001: shown", () => {});',
       "it.skip('UC-002 and UC-003', () => {});",
-      'describe("UC-004: dinner", () => {});',
-      'test("gold member", { tag: "@x" }, () => {});',
+      'describe("UC-004: delivery", () => {});',
+      'test("free delivery", { tag: "@x" }, () => {});',
     ].join("\n");
-    expect(taggedIds("tests/cms/a.test.ts", source)).toEqual([
+    expect(taggedIds("tests/a.test.ts", source)).toEqual([
       "UC-001",
       "UC-002",
       "UC-003",
@@ -82,7 +82,7 @@ describe("which tests name a use case", () => {
   });
 
   test("a comment that mentions a use case does not count", () => {
-    expect(taggedIds("tests/cms/a.test.ts", "// see UC-001\ntest('shown', () => {});")).toEqual([]);
+    expect(taggedIds("tests/a.test.ts", "// see UC-001\ntest('shown', () => {});")).toEqual([]);
   });
 });
 
@@ -112,9 +112,9 @@ describe("a use case and its tests", () => {
       checkUseCases({
         documents: [useCase("UC-001"), index("UC-001")],
         sketches: [],
-        testFiles: [{ path: CONDITIONS, text: "test('shown', () => {});" }],
+        testFiles: [{ path: CHECKOUT, text: "test('shown', () => {});" }],
       }),
-    ).toEqual([`UC-001 lists ${CONDITIONS}, which has no test named UC-001`]);
+    ).toEqual([`UC-001 lists ${CHECKOUT}, which has no test named UC-001`]);
   });
 
   test("a listed file that is not a test file fails", () => {
@@ -142,7 +142,7 @@ describe("tests that name a use case", () => {
   test("a test that names an unknown use case fails", () => {
     expect(
       checkUseCases({ documents: [index()], sketches: [], testFiles: [tagged("UC-009")] }),
-    ).toEqual([`${CONDITIONS} names UC-009, which has no use case`]);
+    ).toEqual([`${CHECKOUT} names UC-009, which has no use case`]);
   });
 });
 
@@ -152,14 +152,14 @@ describe("names and the index", () => {
       checkUseCases({
         documents: [
           document(`UC-001-${NAME}.md`, "UC-002"),
-          { path: "Docs/use-cases/dinner.md", text: "# Dinner" },
+          { path: "Docs/use-cases/delivery.md", text: "# Delivery" },
           index(),
         ],
         sketches: [],
         testFiles: [tagged("UC-001")],
       }),
     ).toEqual([
-      "Docs/use-cases/dinner.md: a use case's file name is UC-<three digits>-<kebab-case>.md",
+      "Docs/use-cases/delivery.md: a use case's file name is UC-<three digits>-<kebab-case>.md",
       "UC-001 is missing from Docs/use-cases/README.md",
       "UC-001: the first heading must start with '# UC-001: '",
     ]);
@@ -180,7 +180,7 @@ describe("sketches of use cases with a GUI", () => {
   test("an embedded sketch beside the use case passes", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`![The dinner question](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
         sketches: [SKETCH],
         testFiles: [tagged("UC-001")],
       }),
@@ -201,7 +201,7 @@ describe("sketches of use cases with a GUI", () => {
   test("a GUI use case that links its sketch without ! fails", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`[The dinner question](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [sketched(`[The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
         sketches: [SKETCH],
         testFiles: [tagged("UC-001")],
       }),
@@ -211,7 +211,7 @@ describe("sketches of use cases with a GUI", () => {
   test("a sketch file that does not exist fails", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`![The dinner question](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
         sketches: [],
         testFiles: [tagged("UC-001")],
       }),

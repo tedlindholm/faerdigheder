@@ -37,4 +37,4 @@ _Neighbouring use cases, or "None"._
 
 ## Tests
 
-- [tests/cms/example.test.ts](../../tests/cms/example.test.ts)
+- [tests/example.test.ts](../../tests/example.test.ts)

@@ -45,4 +45,3 @@ Behaviour not built yet is drafted in the work list without an ID, built test-fi
 
 - Keep one emphasis style per Markdown file (`*x*` or `_x_`); markdownlint's MD049 flags a mix.
 - Commit only when the user asks.
-- Umbraco Forms projects: [references/umbraco-forms-designer.md](references/umbraco-forms-designer.md) has selectors and screens for Forms' designer.
