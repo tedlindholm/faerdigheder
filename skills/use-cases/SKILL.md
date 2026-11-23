@@ -49,14 +49,16 @@ Tag only the tests that prove this outcome. Coverage often sits in a shared tabl
 
 - **Vitest or Playwright:** a `test("UC-<nnn>: …")` or `describe("UC-<nnn>: …")` with a literal title. Extract a helper rather than duplicate the steps. A `test.each` that holds only this outcome's rows may carry the ID in its title.
 - **xUnit:** a new `[Theory]` with `[Trait("UseCase", "UC-<nnn>")]` holding those rows. Remove them from the old theory and correct its comment.
+- **Rust:** name the test function `uc_<nnn>_<behaviour>` or `test_uc_<nnn>_<behaviour>`, for example `fn uc_001_rejects_an_empty_basket()`. The checker reads the ID from the name.
+- **Swift Testing:** include the ID in the `@Test` display name, for example `@Test("UC-001: an empty basket is refused")`. **XCTest:** include it in the method name, for example `func testUC001RejectsAnEmptyBasket()`. Both forms are recognised in `.swift` files.
 - **Boundaries:** add rows that pin the edge where the behaviour invites it, such as a near miss or a different letter case.
 
-Run one case's tests with `dotnet test --filter "UseCase=UC-<nnn>"`, `vitest run -t "UC-<nnn>"` or `playwright test --grep "UC-<nnn>"`.
+Run one case's tests with `dotnet test --filter "UseCase=UC-<nnn>"`, `vitest run -t "UC-<nnn>"`, `playwright test --grep "UC-<nnn>"`, or the repository's Rust or Swift test command with its name filter.
 
 ## Draw a sketch
 
 1. **Look at the real screen first.** Run the app and take a screenshot (Playwright, browser tools) into a scratch folder. Delete any throwaway test afterwards.
-2. **Draw a wireframe** from `TEMPLATE.svg`: grey boxes, the screen's real labels and values, one red dashed callout with a short note on what the use case is about. Use the same description for the SVG's `<title>` and the Markdown alt text.
+2. **Draw a wireframe.** Start from `TEMPLATE.svg` or an existing project sketch that gives a better fit. Match the project's visual language when it has one, while keeping the sketch readable and focused on this use case. Use the screen's real labels and fictional values, then add a red dashed callout with a short note about the behaviour. Use the same description for the SVG's `<title>` and the Markdown alt text.
 3. **Render it and look:** `rsvg-convert -w 1200 sketch.svg -o out.png`, then view the PNG. Overflowing text is the usual fault; widen the canvas or wrap the line. `xmllint --noout sketch.svg` checks it is well formed. Without `rsvg-convert`, open the SVG in a browser and take a screenshot.
 
 ## Notes

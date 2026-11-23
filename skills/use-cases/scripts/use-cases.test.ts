@@ -2,11 +2,12 @@
 // use case in its title (Vitest and Playwright) or with [Trait("UseCase", "UC-001")] (xUnit).
 // Adjust the imports and the root below to where the checker and this file live; the fixtures
 // follow the paths set in check-use-cases.mjs.
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { INDEX, USE_CASES, loadRepository } from "../../scripts/check-use-cases.mjs";
-import { checkUseCases, taggedIds } from "../../scripts/use-cases.mjs";
+import { INDEX, USE_CASES, loadRepository } from "./check-use-cases.mjs";
+import { checkUseCases, taggedIds } from "./use-cases.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -104,6 +105,26 @@ describe("which tests name a use case", () => {
   test("an xUnit trait", () => {
     const source = '[Fact]\n[Trait("UseCase", "UC-007")]\npublic void Shown() { }';
     expect(taggedIds("tests/dotnet/core/A.cs", source)).toEqual(["UC-007"]);
+  });
+
+  test("a Rust test function whose name contains a use case ID", () => {
+    const source = [
+      "#[test]",
+      "fn uc_008_rejects_an_empty_basket() {}",
+      "#[test]",
+      "fn an_unrelated_test() {}",
+      "fn uc_009_not_a_test() {}",
+    ].join("\n");
+    expect(taggedIds("crates/shop/tests/checkout.rs", source)).toEqual(["UC-008"]);
+  });
+
+  test("Swift Testing titles and XCTest method names", () => {
+    const testing = '@Test("UC-009: refuses an empty basket") func refusesEmptyBasket() {}';
+    const xctest = "func testUC010RejectsAnEmptyBasket() {}";
+    expect(taggedIds("Tests/CheckoutTests.swift", `${testing}\n${xctest}`)).toEqual([
+      "UC-009",
+      "UC-010",
+    ]);
   });
 
   test("a comment that mentions a use case does not count", () => {
@@ -283,6 +304,6 @@ test("a sketch left behind without its use case fails", () => {
   ).toEqual([`${orphan} has no use case beside it`]);
 });
 
-test("the repository's use cases and tests agree", () => {
+test.skipIf(!existsSync(path.join(root, USE_CASES)))("the repository's use cases and tests agree", () => {
   expect(checkUseCases(loadRepository(root))).toEqual([]);
 });

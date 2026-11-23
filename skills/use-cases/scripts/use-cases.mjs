@@ -18,6 +18,10 @@ const TITLE =
 // Modifiers that keep a test from running: its title is not coverage.
 const NOT_RUN = /\.(?:skip|todo|fixme)\b/u;
 const TRAIT = /\[Trait\(\s*"UseCase"\s*,\s*"(?<id>UC-\d{3})"\s*\)\]/gu;
+// Rust cannot use hyphens in identifiers, so tests use `uc_001_...` in the function name.
+const RUST_TEST = /#\[(?:tokio::)?test\][ \t]*(?:\r?\n[ \t]*#\[[^\]]+\][ \t]*)*\r?\n[ \t]*fn\s+(?<name>(?:test_)?uc_(?<number>\d{3})_[a-z0-9_]+)\s*\(/gu;
+// Swift Testing supports a human-readable test name; XCTest uses a test method name.
+const SWIFT_TEST = /@Test\(\s*"(?<title>(?:(?!").)*)"\s*\)|\bfunc\s+testUC(?<number>\d{3})[A-Za-z0-9_]*\s*\(/gu;
 const LINK = /\]\((?<target>[^)\s]+)\)/gu;
 const IMAGE = /!\[[^\]]*\]\((?<target>[^)\s]+)\)/gu;
 const GUI = /^\|\s*\*\*GUI\*\*\s*\|\s*(?<answer>Yes|No)\s*\|/mu;
@@ -82,6 +86,18 @@ const groups = function groups(text, pattern, name) {
 export const taggedIds = function taggedIds(file, source) {
   if (file.endsWith(".cs")) {
     return [...new Set(groups(source, TRAIT, "id"))];
+  }
+  if (file.endsWith(".rs")) {
+    return [...new Set([...source.matchAll(RUST_TEST)].map((match) => `UC-${match.groups.number}`))];
+  }
+  if (file.endsWith(".swift")) {
+    return [...new Set([
+      ...[...source.matchAll(SWIFT_TEST)].flatMap((match) => {
+        const title = group(match, "title");
+        const number = group(match, "number");
+        return title.match(ID) ?? (number === "" ? [] : [`UC-${number}`]);
+      }),
+    ])];
   }
   const ids = [];
   for (const match of source.matchAll(TITLE)) {

@@ -13,8 +13,8 @@ const TEST_ROOTS = ["tests"];
 const OWN_TESTS = "tests/tooling/use-cases.test.ts";
 export const INDEX = `${USE_CASES}/README.md`;
 const TEMPLATE = `${USE_CASES}/TEMPLATE.md`;
-// Vitest, Jest and Playwright files by name; any C# file, since xUnit tests carry a trait.
-const TEST_SOURCE = /\.(?:test|spec)\.[cm]?[jt]sx?$|\.cs$/u;
+// JavaScript test files by name; C#, Rust and Swift files use their language's test markers.
+const TEST_SOURCE = /\.(?:test|spec)\.[cm]?[jt]sx?$|\.(?:cs|rs|swift)$/u;
 const BUILD_OUTPUT = /\/(?:bin|obj|node_modules)\//u;
 const NONE = 0;
 const FAILED = 1;
