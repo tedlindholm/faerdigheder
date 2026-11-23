@@ -1,31 +1,28 @@
-// Keeps the use case folder and the tests in step (rules in the folder's README.md): every use
-// case lists tests that name its ID, every test naming an ID is listed by that use case, every GUI
-// use case embeds its sketch, and the index lists every use case. Set the three paths below to the
-// repository's layout; all are relative to the repository root.
+// The checks that keep the use case folder and the tests in step (rules in the folder's README.md):
+// every use case lists tests that name its ID, every test naming an ID is listed by that use case,
+// every GUI use case embeds its sketch, and the index lists the use cases and nothing else. Reads
+// no files: check-use-cases.mjs loads the repository and holds its paths.
 
-import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const USE_CASES = "Docs/use-cases";
-const TEST_ROOT = "tests";
-const INDEX = `${USE_CASES}/README.md`;
-const TEMPLATE = `${USE_CASES}/TEMPLATE.md`;
-// This check's own tests write titles that name use cases as fixtures, so they are not scanned.
-const OWN_TESTS = "tests/tooling/use-cases.test.ts";
+// The index is the table of use cases at the end of the folder's README.
+const INDEX_NAME = "README.md";
 const NONE = 0;
 
 const ID = /\bUC-\d{3}\b/gu;
 const FILE_NAME = /^(?<id>UC-\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
+// A title is the first argument of test, it or describe, whatever modifiers they carry. After
+// `.each` or `.for` it is the first argument of the second call: test.each(rows)("title", …).
 const TITLE =
-  /\b(?:test|it|describe)(?:\.\w+)*\(\s*(?<quote>["'`])(?<title>(?:(?!\k<quote>)[^\\]|\\.)*)\k<quote>/gu;
+  /\b(?:test|it|describe)(?<modifiers>(?:\.\w+)*)(?:(?<=\.(?:each|for))(?:\([\s\S]*?\)|`[^`]*`))?\(\s*(?<quote>["'`])(?<title>(?:(?!\k<quote>)[^\\]|\\.)*)\k<quote>/gu;
+// Modifiers that keep a test from running: its title is not coverage.
+const NOT_RUN = /\.(?:skip|todo|fixme)\b/u;
 const TRAIT = /\[Trait\(\s*"UseCase"\s*,\s*"(?<id>UC-\d{3})"\s*\)\]/gu;
 const LINK = /\]\((?<target>[^)\s]+)\)/gu;
 const IMAGE = /!\[[^\]]*\]\((?<target>[^)\s]+)\)/gu;
 const GUI = /^\|\s*\*\*GUI\*\*\s*\|\s*(?<answer>Yes|No)\s*\|/mu;
 const TESTS_SECTION = /^## Tests[ \t]*$(?<body>[\s\S]*?)(?=^## |(?![\s\S]))/mu;
-// Vitest, Jest and Playwright files by name; any C# file, since xUnit tests carry a trait.
-const TEST_SOURCE = /\.(?:test|spec)\.[cm]?[jt]sx?$|\.cs$/u;
-const BUILD_OUTPUT = /\/(?:bin|obj|node_modules)\//u;
+const USE_CASE_FILE = /^UC-\d{3}-/u;
 
 /**
  * @typedef {Readonly<{ path: string; text: string }>} RepoFile A file and its text; the path is
@@ -34,15 +31,15 @@ const BUILD_OUTPUT = /\/(?:bin|obj|node_modules)\//u;
  *   documents: readonly RepoFile[];
  *   sketches: readonly string[];
  *   testFiles: readonly RepoFile[];
- * }>} Repository `documents` are the Markdown files in Docs/use-cases, the index included and the
- *   template left out; `sketches` are the SVG files there; `testFiles` are the test sources.
+ * }>} Repository `documents` are the Markdown files in the use case folder, the index included
+ *   and the template left out; `sketches` are the SVG files there; `testFiles` are the test sources.
  * @typedef {Readonly<{ id: string; file: RepoFile; listed: readonly string[] }>} UseCase
  * @typedef {Readonly<{
- *   index: string;
+ *   index: RepoFile;
  *   sketches: readonly string[];
  *   tags: Readonly<Record<string, readonly string[]>>;
  *   useCases: readonly UseCase[];
- * }>} Context The index's text, the sketches, the IDs each test file names, and the use cases.
+ * }>} Context The index, the sketches, the IDs each test file names, and the use cases.
  */
 
 /**
@@ -86,8 +83,13 @@ export const taggedIds = function taggedIds(file, source) {
   if (file.endsWith(".cs")) {
     return [...new Set(groups(source, TRAIT, "id"))];
   }
-  const titles = groups(source, TITLE, "title");
-  return [...new Set(titles.flatMap((title) => title.match(ID) ?? []))];
+  const ids = [];
+  for (const match of source.matchAll(TITLE)) {
+    if (!NOT_RUN.test(group(match, "modifiers"))) {
+      ids.push(...(group(match, "title").match(ID) ?? []));
+    }
+  }
+  return [...new Set(ids)];
 };
 
 /**
@@ -180,8 +182,8 @@ const checkUseCase = function checkUseCase(useCase, context) {
   if (!file.text.startsWith(`# ${id}: `)) {
     problems.push(`${id}: the first heading must start with '# ${id}: '`);
   }
-  if (!context.index.includes(`(${path.posix.basename(file.path)})`)) {
-    problems.push(`${id} is missing from ${INDEX}`);
+  if (!context.index.text.includes(`(${path.posix.basename(file.path)})`)) {
+    problems.push(`${id} is missing from ${context.index.path}`);
   }
   return [...problems, ...checkSketch(useCase, context), ...checkListedTests(useCase, context)];
 };
@@ -211,6 +213,34 @@ const checkTags = function checkTags(context) {
     }
   }
   return problems;
+};
+
+/**
+ * The index's links to use case files that do not exist, as a retired use case leaves behind.
+ *
+ * @param {RepoFile} index
+ * @param {readonly RepoFile[]} files The use case documents, without the index.
+ * @returns {string[]}
+ */
+const checkIndexLinks = function checkIndexLinks(index, files) {
+  return groups(index.text, LINK, "target")
+    .filter((target) => FILE_NAME.test(path.posix.basename(target)))
+    .filter((target) => !files.some((file) => file.path === resolve(index, target)))
+    .map((target) => `${index.path} links ${target}, which does not exist`);
+};
+
+/**
+ * The sketches named like a use case that have no use case of the same name beside them.
+ *
+ * @param {readonly string[]} sketches
+ * @param {readonly RepoFile[]} files The use case documents, without the index.
+ * @returns {string[]}
+ */
+const checkOrphanSketches = function checkOrphanSketches(sketches, files) {
+  return sketches
+    .filter((sketch) => USE_CASE_FILE.test(path.posix.basename(sketch)))
+    .filter((sketch) => !files.some((file) => file.path === sketch.replace(/\.svg$/u, ".md")))
+    .map((sketch) => `${sketch} has no use case beside it`);
 };
 
 /**
@@ -244,59 +274,24 @@ const identify = function identify(files) {
  * @returns {string[]}
  */
 export const checkUseCases = function checkUseCases({ documents, sketches, testFiles }) {
-  const { problems, useCases } = identify(documents.filter((document) => document.path !== INDEX));
+  const index = documents.find((document) => path.posix.basename(document.path) === INDEX_NAME);
+  if (!index) {
+    return [`the use case folder has no ${INDEX_NAME} to hold the index`];
+  }
+  const files = documents.filter((document) => document !== index);
+  const { problems, useCases } = identify(files);
   /** @type {Record<string, readonly string[]>} */
   const tags = {};
   for (const file of testFiles) {
     tags[file.path] = taggedIds(file.path, file.text);
   }
   /** @type {Context} */
-  const context = {
-    index: documents
-      .filter((document) => document.path === INDEX)
-      .map((document) => document.text)
-      .join(""),
-    sketches,
-    tags,
-    useCases,
-  };
+  const context = { index, sketches, tags, useCases };
   return [
     ...problems,
+    ...checkIndexLinks(index, files),
+    ...checkOrphanSketches(sketches, files),
     ...useCases.flatMap((useCase) => checkUseCase(useCase, context)),
     ...checkTags(context),
   ].toSorted();
-};
-
-/**
- * The repository-relative paths of the files under `directory`, build output left out.
- *
- * @param {string} root
- * @param {string} directory
- * @returns {string[]}
- */
-const filesUnder = function filesUnder(root, directory) {
-  return readdirSync(path.join(root, directory), { encoding: "utf8", recursive: true })
-    .map((file) => path.posix.join(directory, file.split(path.sep).join("/")))
-    .filter((file) => !BUILD_OUTPUT.test(file));
-};
-
-/**
- * The use case documents, their sketches and the test sources of the repository at `root`.
- *
- * @param {string} root
- * @returns {Repository}
- */
-export const loadRepository = function loadRepository(root) {
-  /** @param {string} file */
-  const read = (file) => ({ path: file, text: readFileSync(path.join(root, file), "utf8") });
-  const useCaseFiles = filesUnder(root, USE_CASES);
-  return {
-    documents: useCaseFiles
-      .filter((file) => file.endsWith(".md") && file !== TEMPLATE)
-      .map((file) => read(file)),
-    sketches: useCaseFiles.filter((file) => file.endsWith(".svg")),
-    testFiles: filesUnder(root, TEST_ROOT)
-      .filter((file) => file !== OWN_TESTS && TEST_SOURCE.test(file))
-      .map((file) => read(file)),
-  };
 };

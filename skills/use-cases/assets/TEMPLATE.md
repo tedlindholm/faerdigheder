@@ -1,6 +1,6 @@
 # UC-000: _The single outcome, in one sentence_
 
-<!-- How to fill this in: README.md in this folder. -->
+<!-- Replace every placeholder. Keep the JSON example only when it explains the input. For GUI No, replace the entire Sketch section, including the image, with a Rule section. See README.md. -->
 
 | | |
 | --- | --- |

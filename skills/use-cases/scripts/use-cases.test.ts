@@ -1,10 +1,14 @@
 // Every use case has tests, and every test that names a use case is listed by it. A test names a
 // use case in its title (Vitest and Playwright) or with [Trait("UseCase", "UC-001")] (xUnit).
-// Adjust the import below to where the checker lives.
+// Adjust the imports and the root below to where the checker and this file live; the fixtures
+// follow the paths set in check-use-cases.mjs.
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { checkUseCases, loadRepository, taggedIds } from "../../scripts/use-cases.mjs";
+import { INDEX, USE_CASES, loadRepository } from "../../scripts/check-use-cases.mjs";
+import { checkUseCases, taggedIds } from "../../scripts/use-cases.mjs";
 
-const root = new URL("../../", import.meta.url).pathname;
+const root = fileURLToPath(new URL("../../", import.meta.url));
 
 interface RepoFile {
   readonly path: string;
@@ -19,7 +23,7 @@ const document = (
   heading: string,
   tests: readonly string[] = [CHECKOUT],
 ): RepoFile => ({
-  path: `Docs/use-cases/${fileName}`,
+  path: `${USE_CASES}/${fileName}`,
   text: [
     `# ${heading}: An empty basket cannot be checked out`,
     "",
@@ -29,7 +33,7 @@ const document = (
     "",
     "## Tests",
     "",
-    ...tests.map((file) => `- [${file}](../../${file})`),
+    ...tests.map((file) => `- [${file}](${path.posix.relative(USE_CASES, file)})`),
     "",
   ].join("\n"),
 });
@@ -37,21 +41,28 @@ const document = (
 const useCase = (id: string, tests: readonly string[] = [CHECKOUT]): RepoFile =>
   document(`${id}-${NAME}.md`, id, tests);
 
-const SKETCH = `Docs/use-cases/UC-001-${NAME}.svg`;
+// UC-001 without the row that says whether it has a GUI.
+const PLAIN = useCase("UC-001");
+const UNMARKED: RepoFile = {
+  path: PLAIN.path,
+  text: PLAIN.text.replace("| **GUI** | No |\n", ""),
+};
+
+const SKETCH = `${USE_CASES}/UC-001-${NAME}.svg`;
 
 // UC-001 with a GUI, embedding `embed` above its tests.
 const sketched = (embed: string): RepoFile => {
-  const { path, text } = useCase("UC-001");
+  const file = useCase("UC-001");
   return {
-    path,
-    text: text
+    path: file.path,
+    text: file.text
       .replace("| **GUI** | No |", "| **GUI** | Yes |")
       .replace("## Tests", `${embed}\n\n## Tests`),
   };
 };
 
 const index = (...ids: readonly string[]): RepoFile => ({
-  path: "Docs/use-cases/README.md",
+  path: INDEX,
   text: ids.map((id) => `- [${id}](${id}-${NAME}.md)`).join("\n"),
 });
 
@@ -64,16 +75,30 @@ describe("which tests name a use case", () => {
   test("a Vitest or Playwright title, including describe and modifiers", () => {
     const source = [
       'test("UC-001: shown", () => {});',
-      "it.skip('UC-002 and UC-003', () => {});",
+      "it.only('UC-002 and UC-003', () => {});",
       'describe("UC-004: delivery", () => {});',
       'test("free delivery", { tag: "@x" }, () => {});',
     ].join("\n");
-    expect(taggedIds("tests/a.test.ts", source)).toEqual([
-      "UC-001",
-      "UC-002",
-      "UC-003",
-      "UC-004",
-    ]);
+    expect(taggedIds("tests/a.test.ts", source)).toEqual(["UC-001", "UC-002", "UC-003", "UC-004"]);
+  });
+
+  test("a title after each or for, with a table of rows or a tagged template", () => {
+    const source = [
+      'test.each([[1, "a"], [2, "b"]])("UC-001: row %i", () => {});',
+      'describe.for(rows)("UC-002: %s", () => {});',
+      "it.each`\n  n\n  1\n`('UC-003: $n', () => {});",
+    ].join("\n");
+    expect(taggedIds("tests/a.test.ts", source)).toEqual(["UC-001", "UC-002", "UC-003"]);
+  });
+
+  test("a skipped, todo or fixme test does not count", () => {
+    const source = [
+      'test.skip("UC-001: shown", () => {});',
+      'it.todo("UC-002: later");',
+      'test.fixme("UC-003: broken", () => {});',
+      'describe.skip.each(rows)("UC-004: %s", () => {});',
+    ].join("\n");
+    expect(taggedIds("tests/a.test.ts", source)).toEqual([]);
   });
 
   test("an xUnit trait", () => {
@@ -152,17 +177,37 @@ describe("names and the index", () => {
       checkUseCases({
         documents: [
           document(`UC-001-${NAME}.md`, "UC-002"),
-          { path: "Docs/use-cases/delivery.md", text: "# Delivery" },
+          { path: `${USE_CASES}/delivery.md`, text: "# Delivery" },
           index(),
         ],
         sketches: [],
         testFiles: [tagged("UC-001")],
       }),
     ).toEqual([
-      "Docs/use-cases/delivery.md: a use case's file name is UC-<three digits>-<kebab-case>.md",
-      "UC-001 is missing from Docs/use-cases/README.md",
+      `${USE_CASES}/delivery.md: a use case's file name is UC-<three digits>-<kebab-case>.md`,
+      `UC-001 is missing from ${INDEX}`,
       "UC-001: the first heading must start with '# UC-001: '",
     ]);
+  });
+
+  test("an index row for a use case that no longer exists fails", () => {
+    expect(
+      checkUseCases({
+        documents: [useCase("UC-001"), index("UC-001", "UC-002")],
+        sketches: [],
+        testFiles: [tagged("UC-001")],
+      }),
+    ).toEqual([`${INDEX} links UC-002-${NAME}.md, which does not exist`]);
+  });
+
+  test("a folder without an index fails", () => {
+    expect(
+      checkUseCases({
+        documents: [useCase("UC-001")],
+        sketches: [],
+        testFiles: [tagged("UC-001")],
+      }),
+    ).toEqual(["the use case folder has no README.md to hold the index"]);
   });
 
   test("two use cases with the same ID fail", () => {
@@ -180,7 +225,10 @@ describe("sketches of use cases with a GUI", () => {
   test("an embedded sketch beside the use case passes", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [
+          sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`),
+          index("UC-001"),
+        ],
         sketches: [SKETCH],
         testFiles: [tagged("UC-001")],
       }),
@@ -188,10 +236,9 @@ describe("sketches of use cases with a GUI", () => {
   });
 
   test("a use case that does not say whether it has a GUI fails", () => {
-    const { path, text } = useCase("UC-001");
     expect(
       checkUseCases({
-        documents: [{ path, text: text.replace("| **GUI** | No |\n", "") }, index("UC-001")],
+        documents: [UNMARKED, index("UC-001")],
         sketches: [],
         testFiles: [tagged("UC-001")],
       }),
@@ -201,7 +248,10 @@ describe("sketches of use cases with a GUI", () => {
   test("a GUI use case that links its sketch without ! fails", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`[The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [
+          sketched(`[The disabled checkout button](UC-001-${NAME}.svg)`),
+          index("UC-001"),
+        ],
         sketches: [SKETCH],
         testFiles: [tagged("UC-001")],
       }),
@@ -211,12 +261,26 @@ describe("sketches of use cases with a GUI", () => {
   test("a sketch file that does not exist fails", () => {
     expect(
       checkUseCases({
-        documents: [sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`), index("UC-001")],
+        documents: [
+          sketched(`![The disabled checkout button](UC-001-${NAME}.svg)`),
+          index("UC-001"),
+        ],
         sketches: [],
         testFiles: [tagged("UC-001")],
       }),
     ).toEqual([`UC-001's sketch ${SKETCH} does not exist`]);
   });
+});
+
+test("a sketch left behind without its use case fails", () => {
+  const orphan = `${USE_CASES}/UC-002-${NAME}.svg`;
+  expect(
+    checkUseCases({
+      documents: [useCase("UC-001"), index("UC-001")],
+      sketches: [orphan, `${USE_CASES}/TEMPLATE.svg`],
+      testFiles: [tagged("UC-001")],
+    }),
+  ).toEqual([`${orphan} has no use case beside it`]);
 });
 
 test("the repository's use cases and tests agree", () => {
