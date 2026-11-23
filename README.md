@@ -59,7 +59,8 @@ Hack around with it. Make it your own.
     ├── british-spelling/
     ├── semi-minify/
     ├── skill-creator/
-    └── tanstack-ai-code-mode/
+    ├── tanstack-ai-code-mode/
+    └── use-cases/
 ```
 
 ## Reference
@@ -69,6 +70,7 @@ Hack around with it. Make it your own.
 - `semi-minify` — Author-time identifier abbreviation for browser-only JavaScript to reduce network payload while keeping committed source legible.
 - `skill-creator` — Create and refine reusable skills with strong frontmatter, concise instructions, and supporting references where needed.
 - `tanstack-ai-code-mode` — Build and tune TanStack AI Code Mode with typed programmes, hand-declared tools, authored snippets, a GraphQL-as-one-tool pattern and what the packages do beyond their docs.
+- `use-cases` — Write granular use cases, one behaviour per file, with IDs that tests carry, sketches for owned screens, and a checker that fails the test run when the two disagree.
 
 ## Conventions
 
