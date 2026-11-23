@@ -60,7 +60,7 @@ Only use cases about **a screen the project owns** have a sketch. Set GUI to *Ye
   ```
 
   The text in the square brackets describes what the screen shows, for readers who cannot see the image.
-- **Style:** a wireframe, not a screenshot. Grey boxes for inputs, the real labels and values as text, and a red note pointing at what the use case is about. Start from [TEMPLATE.svg](TEMPLATE.svg).
+- **Style:** a wireframe, not a screenshot. Use the screen's real labels, fictional values and a red note pointing at what the use case is about. Start from [TEMPLATE.svg](TEMPLATE.svg) or a more suitable existing project sketch; match the project's visual language when it has one.
 
 A GUI *No* use case has a **Rule** section instead: the rule or input as text, often with a small table of what matches.
 
@@ -68,7 +68,7 @@ A GUI *No* use case has a **Rule** section instead: the rule or input as text, o
 
 Every use case is covered by at least one test, and the link goes both ways:
 
-- **The test names the use case.** In Vitest and Playwright, start the test's title with the ID: `test("UC-001: …", …)`. The ID can also go on a `describe`, which then covers every test inside it. After `.each` or `.for` the title is the second call's: `test.each(rows)("UC-001: …", …)`. In xUnit, add `[Trait("UseCase", "UC-001")]` to the test method. Write the title as an ordinary quoted string with the ID spelt out. An ID in a comment does not count, nor does one on a skipped test (`.skip`, `.todo`, `.fixme`). A commented-out test or one that skips itself while running still looks like coverage to the checker, so confirm the tagged test ran.
+- **The test names the use case.** In Vitest and Playwright, start the test's title with the ID: `test("UC-001: …", …)`. The ID can also go on a `describe`, which then covers every test inside it. After `.each` or `.for` the title is the second call's: `test.each(rows)("UC-001: …", …)`. In xUnit, add `[Trait("UseCase", "UC-001")]` to the test method. In Rust, use `uc_001_<behaviour>` or `test_uc_001_<behaviour>` as the function name. In Swift Testing, include the ID in the `@Test` display name; in XCTest, include it as `testUC001...` in the method name. An ID in a comment does not count, nor does one on a skipped test (`.skip`, `.todo`, `.fixme`). A commented-out test or one that skips itself while running still looks like coverage to the checker, so confirm the tagged test ran.
 - **The use case lists the test file.** Under **Tests**, link every test file that has a test naming this ID, relative to the use case.
 
 A test may cover more than one use case; give it each ID. If a test that names an ID is not listed by that use case, or a listed file has no test with the ID, the test run fails and says which.
