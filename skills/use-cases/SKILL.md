@@ -20,10 +20,10 @@ Inspect the existing folder, index, work list and test command first. On a parti
    - [assets/README.md](assets/README.md) → `<folder>/README.md`. Fill in the scope paragraph: whose behaviour the use cases describe, the project's areas, and which screens are the project's own (only those get sketches). Correct the work-list path if it is not `Plans/USE_CASES.md`.
    - [assets/TEMPLATE.md](assets/TEMPLATE.md) and [assets/TEMPLATE.svg](assets/TEMPLATE.svg) → `<folder>/`.
    - [assets/USE_CASES.md](assets/USE_CASES.md) → the work list.
-3. **Copy the checker:** [scripts/use-cases.mjs](scripts/use-cases.mjs) (the checks) and [scripts/check-use-cases.mjs](scripts/check-use-cases.mjs) (the paths, the loader and the command) side by side, for example into `scripts/`, and [scripts/use-cases.test.ts](scripts/use-cases.test.ts) into the tests, for example `tests/tooling/`. Set `USE_CASES`, `TEST_ROOTS` and `OWN_TESTS` at the top of `check-use-cases.mjs`. In the test, adapt the two imports and the root URL; its fixtures follow the paths you set. It needs Node 22 or later.
-4. **Wire it into the test run.** With Vitest, make sure the repository's test command runs the copied test. Without Vitest, leave the test out and add `node scripts/check-use-cases.mjs` to the checks: it prints each problem and exits with 1 if there is one.
+3. **Implement the checker in the repository's existing language and tooling.** Do not add a language runtime or test framework just for this checker. Write it against the repository's test sources, paths and build-output folders, and keep the checker out of the test files it scans. This skill defines the checks but does not prescribe or supply an implementation language.
+4. **Wire it into the normal checks.** The repository's existing test or check command must run the checker and fail when it finds a mismatch. If the build system cannot run it as a test, add it to the existing check command. Keep the invocation in the project's usual language and tooling.
 5. **Fill the work list** with behaviours that exist but are not written up, taken from the project's own docs.
-6. **Run the checker.** With no use cases it passes; it fails as soon as a test names an ID that has no use case.
+6. **Run the checker and its tests.** Confirm it passes on the current repository and fails for a fixture with a missing use case, an unlisted tagged test, a missing sketch or a broken index link.
 
 ## Choose the task
 
@@ -39,13 +39,13 @@ Inspect the existing folder, index, work list and test command first. On a parti
 2. **Find the tests that already cover it.** Grep for the example values in the docs the behaviour came from.
 3. **Finish the draft in Plans.** Write Given, When and Then. For an owned screen, prepare and inspect the SVG sketch. For other behaviour, write the rule. If coverage is missing, write the test first and watch it fail. If the behaviour already exists, show the test can fail by running it once with a wrong expectation. Run the relevant tests and confirm they pass.
 4. **Move the finished case to Docs.** Allocate the next ID, move the completed text and any sketch into `Docs/use-cases/`, and update relative links. [Tag the tests](#tag-the-tests) that prove this outcome, link their files under **Tests**, and add the index row. Between tagging and the index row the checker fails; that is the expected red.
-5. **Verify the move.** Run the checker (the repository's test command, or `node scripts/check-use-cases.mjs`), tagged suites and repository lint and format checks. Remove the Plans entry once verification succeeds. Edit the index and the work list separately: a work-list row is often a substring of its index row, so a find-and-replace can hit the wrong one. If work stops with the case incomplete, keep the draft and outstanding work in Plans and withdraw any provisional Docs entry, index row and new ID tags.
+5. **Verify the move.** Run the checker through the repository's normal check command, the tagged suites and repository lint and format checks. Remove the Plans entry once verification succeeds. Edit the index and the work list separately: a work-list row is often a substring of its index row, so a find-and-replace can hit the wrong one. If work stops with the case incomplete, keep the draft and outstanding work in Plans and withdraw any provisional Docs entry, index row and new ID tags.
 
 For example, if UC-008 was retired and UC-007 is the highest remaining case, allocate UC-009. Recheck the index before finishing if someone else is adding cases.
 
 ## Tag the tests
 
-Tag only the tests that prove this outcome. Coverage often sits in a shared table (`test.each`, a loop, `[InlineData]` rows) that covers several behaviours, and tagging the table claims rows that belong to other use cases. Move this outcome's rows into their own test instead:
+Tag only the tests that prove this outcome. Coverage can sit in a shared parameterised test, and tagging it can claim rows that belong to other use cases. Move this outcome's rows into their own test instead. Use the repository's test framework and naming conventions; extend its checker to recognise those conventions. The examples below show several possible forms, not a required language or framework:
 
 - **Vitest or Playwright:** a `test("UC-<nnn>: …")` or `describe("UC-<nnn>: …")` with a literal title. Extract a helper rather than duplicate the steps. A `test.each` that holds only this outcome's rows may carry the ID in its title.
 - **xUnit:** a new `[Theory]` with `[Trait("UseCase", "UC-<nnn>")]` holding those rows. Remove them from the old theory and correct its comment.
@@ -53,7 +53,7 @@ Tag only the tests that prove this outcome. Coverage often sits in a shared tabl
 - **Swift Testing:** include the ID in the `@Test` display name, for example `@Test("UC-001: an empty basket is refused")`. **XCTest:** include it in the method name, for example `func testUC001RejectsAnEmptyBasket()`. Both forms are recognised in `.swift` files.
 - **Boundaries:** add rows that pin the edge where the behaviour invites it, such as a near miss or a different letter case.
 
-Run one case's tests with `dotnet test --filter "UseCase=UC-<nnn>"`, `vitest run -t "UC-<nnn>"`, `playwright test --grep "UC-<nnn>"`, or the repository's Rust or Swift test command with its name filter.
+Run one case's tests with the repository's existing test command and its name or test filter. Do not change frameworks or test languages to fit the checker.
 
 ## Draw a sketch
 
