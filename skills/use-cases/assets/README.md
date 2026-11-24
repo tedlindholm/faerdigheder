@@ -4,7 +4,7 @@
 
 This folder holds finished use cases. Keep proposed and partially completed cases in `Plans/USE_CASES.md`, including cases for behaviour that already works. For example, a case with passing tests and an unfinished sketch still belongs in Plans.
 
-The checker compares file names, heading IDs, index links, GUI flags, sketch references and test-file tags, and reports index rows and sketches left behind by a use case that is gone. It scans source text. Run the tagged suites and read their assertions to confirm that an active test exercises the stated outcome. During review, also check the index row’s wording, area and GUI value, and the sketch’s placement and accuracy.
+The checker compares file names, heading IDs, index links, GUI flags, sketch references and test-file tags, and reports index rows and sketches left behind by a use case that is gone. Implement it in the repository's existing language and test stack; do not add a runtime just for this check. Its source parser must match the repository's test conventions and skip its own tests and generated build output. Run the tagged suites and read their assertions to confirm that an active test exercises the stated outcome. During review, also check the index row’s wording, area and GUI value, and the sketch’s placement and accuracy.
 
 Use British spelling in descriptions and annotations. Preserve the exact spelling of quoted interface text, code identifiers and example API fields.
 
